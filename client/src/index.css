@@ -1,1 +1,15 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+:root{
+  --hero-grad: linear-gradient(135deg,#7c3aed 0%, #2563eb 100%);
+}
+
+/* basic resets */
+body {
+  @apply transition-colors duration-500 ease-in-out bg-gradient-to-br from-indigo-50 to-white dark:from-slate-900 dark:to-slate-950;
+}
+/* helper */
+.hero-gradient {
+  background: linear-gradient(135deg, rgba(124,58,237,0.12), rgba(37,99,235,0.08));
+}
+.shadow-soft { box-shadow: 0 8px 24px rgba(15,23,42,0.06); }
