@@ -30,6 +30,11 @@ class PeerService {
       return offer;
     }
   }
+  async setLocalDescription(ans){
+    if(this.peer){
+      await this.peer.setRemoteDescription(new RTCSessionDescription(ans))
+    }
+  }
 }
 
 export default new PeerService();

@@ -22,7 +22,7 @@ const SocketIdToEmailMap = new Map();
 io.on("connection", (socket) => {
   console.log(`Socket Connected`, socket.id);
 
-  socket.on("room:join", (data) => {
+  socket.on("room:join", (data) => {     
     const { email, roomId } = data;
     emailToSocketIdMap.set(email, socket.id);
     SocketIdToEmailMap.set(socket.id, email);
@@ -32,12 +32,22 @@ io.on("connection", (socket) => {
 
     io.to(socket.id).emit("room:join", data);
   });
-  socket.on("user:call",({to,offer})=>{
+  socket.on("user:call",({to,offer})=>{   //2
     io.to(to).emit("incoming:call",{from:socket.id,offer})
   })
-  socket.on('call:accepted',({to,ans})=>{
+  socket.on('call:accepted',({to,ans})=>{  //3
     io.to(to).emit("call:accepted",{from:socket.id,ans})
-  })
+  }) 
+  socket.on('peer:nego:needed',({offer,to})=>{ //4
+    io.to(to).emit("peer:nego:needed",{from:socket.id,offer})
+  }) 
+  socket.on('peer:nego:done',({to,ans})=>{ //5
+    io.to(to).emit("peer:nego:final",{from:socket.id,ans})
+  }) 
+  socket.on("peer:candidate", ({ to, candidate }) => {
+  io.to(to).emit("peer:candidate", { from: socket.id, candidate });
+});
+
   
 });
 
