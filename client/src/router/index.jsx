@@ -7,6 +7,7 @@ import JoinMeeting from "../pages/JoinMeeting";
 import Dashboard from "../layouts/Dashboard";
 import Profile from "../pages/Profile";
 import MeetingRoom from "../pages/MeetingRoom.jsx";
+import HostMeeting from "../pages/HostMeeting.jsx";
 const router = createBrowserRouter([
   {
     path: "/",
@@ -16,10 +17,11 @@ const router = createBrowserRouter([
       { path: "login", element: <Login /> },
       { path: "register", element: <Register /> },
       { path: "join", element: <JoinMeeting /> },
+      { path: "host", element: <HostMeeting /> },
       {
-  path: "meeting/:roomId",
-  element: <MeetingRoom />,
-},
+        path: "meeting/:roomId",
+        element: <MeetingRoom />,
+      },
       {
         path: "dashboard",
         element: <Dashboard />,

@@ -16,40 +16,54 @@ const io = new Server(server, {
   cors: { origin: process.env.CLIENT_URL || "*", methods: ["GET", "POST"] },
 });
 
-const emailToSocketIdMap = new Map();
-const SocketIdToEmailMap = new Map();
 
-io.on("connection", (socket) => {
-  console.log(`Socket Connected`, socket.id);
 
-  socket.on("room:join", (data) => {     
-    const { email, roomId } = data;
-    emailToSocketIdMap.set(email, socket.id);
-    SocketIdToEmailMap.set(socket.id, email);
-    
-    io.to(roomId).emit("user:joined", { email, id: socket.id }); //send message to all existing user that new user added
-    socket.join(roomId); //if no one then create rooms otherwise add
+const users = {};
+const socketToRoom = {};
 
-    io.to(socket.id).emit("room:join", data);
-  });
-  socket.on("user:call",({to,offer})=>{   //2
-    io.to(to).emit("incoming:call",{from:socket.id,offer})
-  })
-  socket.on('call:accepted',({to,ans})=>{  //3
-    io.to(to).emit("call:accepted",{from:socket.id,ans})
-  }) 
-  socket.on('peer:nego:needed',({offer,to})=>{ //4
-    io.to(to).emit("peer:nego:needed",{from:socket.id,offer})
-  }) 
-  socket.on('peer:nego:done',({to,ans})=>{ //5
-    io.to(to).emit("peer:nego:final",{from:socket.id,ans})
-  }) 
-  socket.on("peer:candidate", ({ to, candidate }) => {
-  io.to(to).emit("peer:candidate", { from: socket.id, candidate });
+io.on('connection', socket => {
+     console.log("⚡ New socket connected:", socket.id);
+    socket.on("join room", roomID => {
+        console.log(`📢 ${socket.id} joined room: ${roomID}`);
+        if (users[roomID]) {
+            const length = users[roomID].length;
+            if (length === 4) {
+                socket.emit("room full");
+                return;
+            }
+            users[roomID].push(socket.id);
+        } else {
+            users[roomID] = [socket.id];
+        }
+        socketToRoom[socket.id] = roomID;
+        const usersInThisRoom = users[roomID].filter(id => id !== socket.id);
+
+        socket.emit("all users", usersInThisRoom);
+    });
+
+    socket.on("sending signal", payload => {
+        console.log(`📤 Signal from ${socket.id} to ${payload.userToSignal}`);
+        io.to(payload.userToSignal).emit('user joined', { signal: payload.signal, callerID: payload.callerID });
+    });
+
+    socket.on("returning signal", payload => {
+        console.log(`📤 Returning signal from ${socket.id}  to ${payload.callerID}`);
+        io.to(payload.callerID).emit('receiving returned signal', { signal: payload.signal, id: socket.id });
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`❌ Disconnected: ${socket.id}`);
+        const roomID = socketToRoom[socket.id];
+        let room = users[roomID];
+        if (room) {
+            room = room.filter(id => id !== socket.id);
+            users[roomID] = room;
+        }
+    });
+
 });
 
-  
-});
+
 
 
 

@@ -17,7 +17,7 @@ export default function Login() {
       dispatch(fetchUser());
       navigate("/");
     }
-  }, [isAuthenticated]);
+  }, [dispatch, isAuthenticated, navigate]);
 
   const [form, setForm] = useState({ email: "", password: "" });
   const onChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });

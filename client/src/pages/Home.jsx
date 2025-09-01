@@ -1,13 +1,13 @@
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../slices/authSlice";
 import Button from "../components/ui/Button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 export default function Home() {
   const { user } = useSelector((s) => s.auth);
   const dispatch = useDispatch();
-
+  const navigate=useNavigate()
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center p-6 
@@ -66,11 +66,13 @@ export default function Home() {
                   <Button variant="ghost">Dashboard</Button>
                 </motion.div>
               </Link>
+              <Link to="/host">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="accent" onClick={() => dispatch(logout())}>
-                  Logout
+                <Button variant="accent" >
+                  Host
                 </Button>
               </motion.div>
+              </Link>
             </>
           ) : (
             <Link to="/login">
