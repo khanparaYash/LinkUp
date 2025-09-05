@@ -1,101 +1,106 @@
-import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../slices/authSlice";
-import Button from "../components/ui/Button";
-import { Link, useNavigate } from "react-router-dom";
+// src/pages/Home.jsx
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useSelector, useDispatch } from "react-redux";
+import { logout } from "@/slices/authSlice";
 
 export default function Home() {
-  const { user } = useSelector((s) => s.auth);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
-  const navigate=useNavigate()
+
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center p-6 
-                 bg-gradient-to-br from-indigo-50 via-white to-purple-50 
-                 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900
-                 transition-colors duration-500"
-    >
+    <div className="flex flex-col items-center justify-center text-center py-20 space-y-8">
+      {/* Hero Section */}
+      <motion.h1
+        className="text-4xl md:text-6xl font-bold tracking-tight"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        Welcome to <span className="text-primary">LinkUp</span>
+      </motion.h1>
+
+      <motion.p
+        className="text-lg md:text-xl text-muted-foreground max-w-2xl"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        Secure, simple, and fast video meetings. Host or join a meeting in
+        seconds — no hassle, no limits.
+      </motion.p>
+
+      {/* CTA Buttons */}
       <motion.div
+        className="flex flex-wrap gap-4 justify-center"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7 }}
-        className="max-w-3xl w-full text-center"
+        transition={{ delay: 0.4 }}
       >
-        {/* Hero Heading */}
-        <motion.h1
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-5xl font-extrabold mb-3 
-                     text-slate-800 dark:text-white
-                     tracking-tight"
-        >
-          Welcome to{" "}
-          <span className="bg-gradient-to-r from-indigo-500 to-purple-500 text-transparent bg-clip-text">
-            LinkUp 👋
-          </span>
-        </motion.h1>
+        {/* Always allow joining */}
+        <Link to="/join">
+          <Button size="lg">Join a Meeting</Button>
+        </Link>
 
-        {/* Subtitle */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.7 }}
-          className="text-lg text-slate-600 dark:text-slate-400 mb-8"
-        >
-          Fast, modern web meetings built for Gen-Z.
-        </motion.p>
-
-        {/* CTA Buttons */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8, duration: 0.6 }}
-          className="flex items-center gap-4 justify-center flex-wrap"
-        >
-          <Link to="/join">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button variant="primary">Join as Guest</Button>
-            </motion.div>
-          </Link>
-
-          {user ? (
-            <>
-              <Link to="/dashboard">
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost">Dashboard</Button>
-                </motion.div>
-              </Link>
-              <Link to="/host">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="accent" >
-                  Host
-                </Button>
-              </motion.div>
-              </Link>
-            </>
-          ) : (
-            <Link to="/login">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="ghost">Login</Button>
-              </motion.div>
+        {isAuthenticated ? (
+          <>
+            {/* Host only if logged in */}
+            <Link to="/host">
+              <Button size="lg" variant="outline">
+                Host a Meeting
+              </Button>
             </Link>
-          )}
-        </motion.div>
 
-        {/* Logged in info */}
-        <motion.div
+            {/* Logout */}
+            <Button
+              size="lg"
+              variant="destructive"
+              onClick={() => dispatch(logout())}
+            >
+              Logout
+            </Button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">
+              <Button variant="outline">Login</Button>
+            </Link>
+            <Link to="/register">
+              <Button variant="secondary">Register</Button>
+            </Link>
+          </>
+        )}
+      </motion.div>
+
+      {/* Extra Info */}
+      {!isAuthenticated && (
+        <motion.p
+          className="text-sm text-muted-foreground mt-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.1, duration: 0.6 }}
-          className="mt-8 text-sm text-slate-500 dark:text-slate-400"
+          transition={{ delay: 0.6 }}
         >
-          Logged in as:{" "}
-          <span className="font-medium">
-            {user?.name || "Guest"}
-          </span>
-        </motion.div>
-      </motion.div>
+          No account? You can still join as a guest.
+          <Link to="/register" className="text-primary underline ml-1">
+            Sign up
+          </Link>{" "}
+          for more features.
+        </motion.p>
+      )}
+
+      {isAuthenticated && (
+        <motion.p
+          className="text-sm text-muted-foreground mt-6"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
+          👋 Hello,{" "}
+          <span className="font-semibold">{user?.name || "User"}</span>! Ready
+          to start your meeting?
+        </motion.p>
+      )}
     </div>
   );
 }

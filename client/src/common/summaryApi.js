@@ -8,6 +8,6 @@ export const SummaryApi = {
   logout: { url: "/api/auth/logout", method: "get" },
 
   // Meetings - placeholder endpoints (implement server later)
-  create_meeting: { url: "/api/meeting/create", method: "post" },
-  join_meeting: { url: "/api/meeting/join", method: "post" },
+  create_meeting: { url: "/api/meetings/create", method: "post" },
+  join_meeting: { url: "/api/meetings/join", method: "post" },
 };

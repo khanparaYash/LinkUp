@@ -1,25 +1,30 @@
-import Header from "./components/Header";
-import { Outlet } from "react-router-dom";
-import { motion } from "framer-motion";
+// src/App.jsx
+import { Outlet, Link } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+import { ModeToggle } from "@/components/mode-toggle"
+import { Toaster } from "@/components/ui/toaster"
+import Header from "./components/Header"
+
 
 export default function App() {
   return (
-    <div
-      className="min-h-screen 
-                 bg-gradient-to-b from-white to-slate-100 
-                 dark:from-slate-950 dark:to-slate-900
-                 transition-colors duration-500"
-    >
-      <Header />
-      <motion.main
-        key={location.pathname} // re-animates when route changes
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
+    
+      <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
+        {/* Navbar */}
         
-      >
-        <Outlet />
-      </motion.main>
-    </div>
-  );
+    <Header/>
+        {/* Main content */}
+        <main className="flex-1 container mx-auto p-6">
+
+          <Outlet />
+          <Toaster />
+        </main>
+
+        {/* Footer */}
+        <footer className="border-t text-center p-4 text-sm text-muted-foreground">
+          © {new Date().getFullYear()} LinkUp. All rights reserved.
+        </footer>
+      </div>
+    
+  )
 }

@@ -1,3 +1,6 @@
+import animate from "tw-animate-css"
+
+
 /** @type {import('tailwindcss').Config} */
 export default {
   darkMode: "class",  // 👈 enable class-based dark mode
@@ -11,5 +14,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [animate,],
 };

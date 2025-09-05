@@ -1,60 +1,126 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import Input from "../components/ui/Input";
-import Card from "../components/ui/Card";
-import Button from "../components/ui/Button";
+import { useEffect, useState } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { callApi } from "../api/callApi"
+import { SummaryApi } from "../common/summaryApi"
+import { toast } from "sonner"
+import { Loader2, Eye, EyeOff } from "lucide-react"
+import { useSelector } from "react-redux"
 
-export default function JoinMeeting() {
-  const navigate = useNavigate();
-  const [meetingId, setMeetingId] = useState("");
-  const [userName, setUserName] = useState("");
+function JoinMeeting() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { isAuthenticated } = useSelector((state) => state.auth)
 
-  const createMeeting = () => {
-    if (!meetingId || !userName) {
-      alert("Please enter both Meeting ID and Name");
-      return;
+  const [meetingId, setMeetingId] = useState("")
+  const [password, setPassword] = useState("")
+  const [guestName, setGuestName] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+
+  // 🔹 Auto-fill if link has query params
+  useEffect(() => {
+    const id = searchParams.get("meetingId")
+    const pwd = searchParams.get("pwd")
+    if (id) setMeetingId(id)
+    if (pwd) setPassword(pwd)
+  }, [searchParams])
+
+  const handleJoin = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const payload = { meetingId, password }
+      if (!isAuthenticated) {
+        payload.guestName = guestName || "Guest"
+      }
+      // after user types name on Join page
+      
+      const res = await callApi(SummaryApi.join_meeting, payload)
+      
+      localStorage.setItem("displayName",guestName );
+      toast.success("Joined meeting successfully 🎉")
+      navigate(`/meeting/${res.meetingId}`)
+    } catch (err) {
+      toast.error(err.msg || "Unable to join meeting")
+    } finally {
+      setLoading(false)
     }
-    navigate(`/meeting/${meetingId}`, { state: { userName } });
-  };
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-slate-900 p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="w-full max-w-md"
-      >
-        <Card className="rounded-2xl shadow-lg">
-          <div className="mb-6 text-center">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">
-              Join a Meeting
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-300 mt-1">
-              Enter your Meeting ID and Name to join
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-4">
+    <div className="flex justify-center items-center min-h-screen">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">
+            Join a Meeting
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleJoin} className="space-y-4">
             <Input
-              label="Meeting ID"
-              placeholder="Enter Meeting ID / Link"
+              type="text"
+              placeholder="Meeting ID"
               value={meetingId}
               onChange={(e) => setMeetingId(e.target.value)}
+              required
+              disabled={loading}
             />
-            <Input
-              label="Your Name"
-              placeholder="Enter Your Name"
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-            />
-            <Button onClick={createMeeting} className="w-full mt-4">
-               Join Meeting
+
+            {/* Password with toggle */}
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                placeholder="Meeting Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-3 flex items-center text-gray-500"
+                onClick={() => setShowPassword((prev) => !prev)}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-5 h-5" />
+                ) : (
+                  <Eye className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+
+            {/* Guest Name (only if not logged in) */}
+            {!isAuthenticated && (
+              <Input
+                type="text"
+                placeholder="Your Name"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                required
+                disabled={loading}
+              />
+            )}
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4 mr-2" />
+                  Joining...
+                </>
+              ) : (
+                "Join Meeting"
+              )}
             </Button>
-          </div>
-        </Card>
-      </motion.div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
+
+export default JoinMeeting

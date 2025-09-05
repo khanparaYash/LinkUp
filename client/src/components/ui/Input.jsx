@@ -1,20 +1,19 @@
-export default function Input({ label, className = "", ...props }) {
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Input = React.forwardRef(({ className, type, ...props }, ref) => {
   return (
-    <div className={`w-full ${className}`}>
-      {label && (
-        <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">
-          {label}
-        </label>
+    <input
+      type={type}
+      className={cn(
+        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        className
       )}
-      <input
-        {...props}
-        className="w-full px-3 py-2 rounded-lg 
-                   border border-slate-200 dark:border-slate-700 
-                   bg-white dark:bg-slate-900 
-                   text-slate-900 dark:text-slate-100 
-                   focus:outline-none focus:ring-2 
-                   focus:ring-indigo-200 dark:focus:ring-indigo-500"
-      />
-    </div>
+      ref={ref}
+      {...props} />
   );
-}
+})
+Input.displayName = "Input"
+
+export { Input }
