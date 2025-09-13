@@ -425,6 +425,7 @@ import {
   VideoOff,
   PhoneOff,
   Info,
+  Users,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import ParticipantsSidebar from "./ParticipantsSidebar";
@@ -433,12 +434,12 @@ const MeetingRoom = () => {
   const location = useLocation();
   const res = location.state;
 
-  const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name }]
+  const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name,video,audio }]
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [active, setActive] = useState(true);
-  const [participants, setParticipants] = useState([]);
+  const [PshowInfo, setPShowInfo] = useState(false);
 
   const socketRef = useRef();
   const userVideo = useRef();
@@ -471,11 +472,11 @@ const MeetingRoom = () => {
 
         // Existing users -> create offer for each
         socketRef.current.on("all users", (users = []) => {
-          users.forEach(({ socketId, name }) => {
+          users.forEach(({ socketId, name, audio = true, video = true }) => {
             const peer = createPeer(socketId, socketRef.current.id, stream);
             peersRef.current.push({ peerID: socketId, peer, name });
             peer.on("stream", (remoteStream) => {
-              addRemoteStream(remoteStream, socketId, name);
+              addRemoteStream(remoteStream, socketId, name, audio, video);
             });
           });
         });
@@ -511,11 +512,6 @@ const MeetingRoom = () => {
               return updated;
             });
 
-            setParticipants((prev) =>
-              prev.map((p) =>
-                p.peerId === peerId ? { ...p, camOn: video, micOn: audio } : p
-              )
-            );
             console.log(remoteStreams);
           }
         );
@@ -527,21 +523,17 @@ const MeetingRoom = () => {
           );
           setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
           console.log(remoteStreams);
-          setParticipants((prev) => prev.filter((p) => p.peerId !== socketId));
         });
 
         // Optional: FYI event — not required for tiles
-        socketRef.current.on(
-          "new participant",
-          ({ socketId: peerId, name }) => {
-            // Could update a sidebar participant list if you want
-            // console.log("🆕 New participant:", socketId, name);
-            setParticipants((prev) => [
-              ...prev,
-              { peerId, name, micOn: true, camOn: true },
-            ]);
-          }
-        );
+        // socketRef.current.on(
+        //   "new participant",
+        //   ({ socketId: peerId, name }) => {
+        //     // Could update a sidebar participant list if you want
+        //     // console.log("🆕 New participant:", socketId, name);
+
+        //   }
+        // );
       });
 
     return () => {
@@ -672,7 +664,26 @@ const MeetingRoom = () => {
         hostName={hostName}
         joinLink={joinLink}
       />
-<ParticipantsSidebar participants={participants} />
+      <ParticipantsSidebar
+        show={PshowInfo}
+        onClose={() => setPShowInfo(false)}
+        participants={[
+          {
+            peerID: socketRef.current?.id,
+            name: displayName,
+            micOn,
+            camOn,
+            isYou: true,
+          },
+          ...remoteStreams.map((p) => ({
+            peerID: p.peerID,
+            name: p.name,
+            micOn: p.audio,
+            camOn: p.video,
+            isYou: false,
+          })),
+        ]}
+      />
 
       {/* Header */}
       <header
@@ -728,12 +739,21 @@ const MeetingRoom = () => {
         } bg-background/80 backdrop-blur-md border-t`}
       >
         <Button
+          onClick={() => setPShowInfo(true)}
+          variant={PshowInfo ? "default" : "secondary"}
+        >
+          <Users className="w-5 h-5" />
+          
+        </Button>
+
+        <Button
           variant={micOn ? "default" : "secondary"}
           size="icon"
           onClick={toggleMic}
         >
           {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
         </Button>
+
         <Button
           variant={camOn ? "default" : "secondary"}
           size="icon"

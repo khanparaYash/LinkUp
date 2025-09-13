@@ -138,7 +138,7 @@ io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
 
   // Client must send: { roomID, name }
-  socket.on("join room", ({ roomID, name = "User" } = {}) => {
+  socket.on("join room", ({ roomID, name = "User",video=true,audio=true } = {}) => {
     if (!roomID) return;
 
     const usersMap = roomUsers.get(roomID) || new Map();
@@ -148,7 +148,7 @@ io.on("connection", (socket) => {
     }
 
     // save metadata
-    usersMap.set(socket.id, { name });
+    usersMap.set(socket.id, { name,audio,video });
     roomUsers.set(roomID, usersMap);
     socketRoom.set(socket.id, roomID);
     socketName.set(socket.id, name);
@@ -158,7 +158,7 @@ io.on("connection", (socket) => {
     // send existing users (except self)
     const others = [...usersMap.entries()]
       .filter(([id]) => id !== socket.id)
-      .map(([socketId, meta]) => ({ socketId, name: meta.name }));
+      .map(([socketId, meta]) => ({ socketId, name: meta.name,audio:meta.audio,video:meta.video }));
     socket.emit("all users", others);
 
     // notify room (except self)
@@ -200,7 +200,15 @@ io.on("connection", (socket) => {
   });
 
   socket.on("media-update", ({ meetingId, peerId,video, audio }) => {
-  socket.to(meetingId).emit("participant-media-update", { peerId, video, audio });
+    const usersMap = roomUsers.get(meetingId);
+  if (usersMap && usersMap.has(peerId)) {
+    const meta = usersMap.get(peerId);
+    meta.video = video;
+    meta.audio = audio;
+    usersMap.set(peerId, meta);
+    roomUsers.set(meetingId, usersMap);
+  }
+    socket.to(meetingId).emit("participant-media-update", { peerId, video, audio });
 });
 
 socket.on("leave room", ({ meetingId, peerId }) => {
