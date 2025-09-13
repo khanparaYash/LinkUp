@@ -42,8 +42,8 @@ function JoinMeeting() {
       const res = await callApi(SummaryApi.join_meeting, payload)
       
       localStorage.setItem("displayName",guestName );
-      toast.success("Joined meeting successfully 🎉")
-      navigate(`/meeting/${res.meetingId}`)
+      toast.success("Joined meeting successfully 🎉");
+      navigate(`/meeting/${res.meetingId}`,{ state: res });
     } catch (err) {
       toast.error(err.msg || "Unable to join meeting")
     } finally {

@@ -67,11 +67,12 @@ function HostMeeting() {
 
       const res = await callApi(SummaryApi.create_meeting, payload);
 
+      localStorage.setItem("displayName",JSON.parse(localStorage.getItem("user")).name );
       toast.success("Meeting created successfully 🎉");
       toast.info(`Meeting ID: ${res.meetingId}`);
       toast.info(`Password: ${password}`);
 
-      navigate(`/meeting/${res.meetingId}`);
+      navigate(`/meeting/${res.meetingId}`,{ state: res });
     } catch (err) {
       toast.error(err.msg || "Unable to create meeting");
     } finally {

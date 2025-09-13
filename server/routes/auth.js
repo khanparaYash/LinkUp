@@ -28,7 +28,7 @@ router.post("/register", async (req, res) => {
       password: hashed,
     });
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
     });
 
     res.status(201).json({
@@ -64,7 +64,7 @@ router.post("/login", async (req, res) => {
     if (!isMatch) return res.status(400).json({ msg: "Invalid credentials" });
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
     });
 
     res.json({

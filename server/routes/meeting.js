@@ -25,12 +25,14 @@ router.post("/create", protect, async (req, res) => {
       expiresAt,
     });
 
-    const shareLink = `${process.env.CLIENT_URL}/meeting/${meetingId}`;
-
+    const shareLink = `${process.env.CLIENT_URL}/join?meetingId=${meetingId}&pwd=${password}`;
+    
     res.status(201).json({
       meetingId: meeting.meetingId,
+      host: {name:req.user.name},
+      participants:[],
       expiresAt: meeting.expiresAt,
-      shareLink, // host can copy this
+      joinLink:shareLink, // host can copy this
     });
   } catch (err) {
     console.error("Create meeting error:", err.message);
@@ -76,10 +78,11 @@ router.post("/join", optionalAuth, async (req, res) => {
       }
     } else {
       const guestCount = meeting.participants.filter((p) => p.guestName).length;
-      meeting.participants.push({ guestName: guestName || `Guest ${guestCount + 1}` });
+      meeting.participants.push({
+        guestName: guestName || `Guest ${guestCount + 1}`,
+      });
     }
 
-    
     await meeting.save();
 
     res.json({
@@ -87,7 +90,7 @@ router.post("/join", optionalAuth, async (req, res) => {
       host: meeting.host,
       participants: meeting.participants,
       expiresAt: meeting.expiresAt,
-      joinLink: `${process.env.FRONTEND_URL}/meeting/${meeting.meetingId}`,
+      joinLink: `${process.env.CLIENT_URL}/join?meetingId=${meeting.meetingId}&pwd=${password}`,
     });
   } catch (err) {
     console.error("Join meeting error:", err.message);
@@ -150,5 +153,23 @@ router.post("/leave", async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 });
+
+// GET /meetings/:id
+router.get("/:id", async (req, res) => {
+  const meeting = await Meeting.findOne({ meetingId: req.params.id })
+    .populate("host", "name email")
+    .select("-password"); // never send hash
+
+  if (!meeting) return res.status(404).json({ msg: "Meeting not found" });
+
+  res.json({
+    meetingId: meeting.meetingId,
+    hostName: meeting.host?.name || "Unknown",
+    participants: meeting.participants.map(p => ({ name: p.name })),
+    createdAt: meeting.createdAt,
+    expiresAt: meeting.expiresAt
+  });
+});
+
 
 export default router;

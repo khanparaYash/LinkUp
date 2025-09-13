@@ -426,13 +426,19 @@ import {
   PhoneOff,
   Info,
 } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import ParticipantsSidebar from "./ParticipantsSidebar";
 
 const MeetingRoom = () => {
+  const location = useLocation();
+  const res = location.state;
+
   const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name }]
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
   const [showInfo, setShowInfo] = useState(false);
   const [active, setActive] = useState(true);
+  const [participants, setParticipants] = useState([]);
 
   const socketRef = useRef();
   const userVideo = useRef();
@@ -446,9 +452,8 @@ const MeetingRoom = () => {
     localStorage.getItem("guestName") ||
     "Guest";
 
-  const hostName = displayName;
-  const meetingPassword = "hidden";
-  const joinLink = `${window.location.origin}/join?meetingId=${roomID}&pwd=${meetingPassword}`;
+  const hostName = res.host.name;
+  const joinLink = res.joinLink;
 
   useEffect(() => {
     socketRef.current = io(
@@ -495,7 +500,9 @@ const MeetingRoom = () => {
           if (item) item.peer.signal(payload.signal);
         });
 
-        socketRef.current.on("participant-media-update", ({ peerId, video, audio }) => {
+        socketRef.current.on(
+          "participant-media-update",
+          ({ peerId, video, audio }) => {
             setRemoteStreams((prev) => {
               const updated = prev.map((p) =>
                 p.peerID === peerId ? { ...p, video, audio } : p
@@ -503,8 +510,13 @@ const MeetingRoom = () => {
               console.log("🔄 Updated remoteStreams:", updated);
               return updated;
             });
+
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.peerId === peerId ? { ...p, camOn: video, micOn: audio } : p
+              )
+            );
             console.log(remoteStreams);
-            
           }
         );
 
@@ -515,13 +527,21 @@ const MeetingRoom = () => {
           );
           setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
           console.log(remoteStreams);
+          setParticipants((prev) => prev.filter((p) => p.peerId !== socketId));
         });
 
         // Optional: FYI event — not required for tiles
-        socketRef.current.on("new participant", ({ socketId, name }) => {
-          // Could update a sidebar participant list if you want
-          console.log("🆕 New participant:", socketId, name);
-        });
+        socketRef.current.on(
+          "new participant",
+          ({ socketId: peerId, name }) => {
+            // Could update a sidebar participant list if you want
+            // console.log("🆕 New participant:", socketId, name);
+            setParticipants((prev) => [
+              ...prev,
+              { peerId, name, micOn: true, camOn: true },
+            ]);
+          }
+        );
       });
 
     return () => {
@@ -652,6 +672,7 @@ const MeetingRoom = () => {
         hostName={hostName}
         joinLink={joinLink}
       />
+<ParticipantsSidebar participants={participants} />
 
       {/* Header */}
       <header
