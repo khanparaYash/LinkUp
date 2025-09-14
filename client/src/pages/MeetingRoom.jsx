@@ -1,416 +1,3 @@
-// import React, { useEffect, useRef, useState } from "react";
-// import io from "socket.io-client";
-// import Peer from "simple-peer";
-// import Video from "./Video";
-// import Card from "../components/ui/Card";
-// const MeetingRoom = () => {
-//   const [remoteStreams, setRemoteStreams] = useState([]);
-//   const socketRef = useRef();
-//   const userVideo = useRef();
-//   const peersRef = useRef([]);
-//   const roomID = window.location.pathname.split("/meeting/")[1];
-
-//   useEffect(() => {
-//     socketRef.current = io("http://localhost:5000");
-
-//     navigator.mediaDevices
-//       .getUserMedia({ video: true, audio: true })
-//       .then((stream) => {
-//         userVideo.current.srcObject = stream;
-
-//         socketRef.current.emit("join room", roomID);
-
-//         socketRef.current.on("all users", (users) => {
-//           console.log("all user");
-
-//           users.forEach((userID) => {
-//             const peer = createPeer(userID, socketRef.current.id, stream);
-//             peersRef.current.push({ peerID: userID, peer });
-//             peer.on("stream", (remoteStream) => {
-//               setRemoteStreams((prev) => [...prev, remoteStream]);
-//             });
-//           });
-//         });
-
-//         socketRef.current.on("user joined", (payload) => {
-//           console.log("user join");
-//           const peer = addPeer(payload.signal, payload.callerID, stream);
-//           peersRef.current.push({ peerID: payload.callerID, peer });
-
-//           peer.on("stream", (remoteStream) => {
-//             setRemoteStreams((prev) => [...prev, remoteStream]);
-//           });
-//         });
-
-//         socketRef.current.on("receiving returned signal", (payload) => {
-//           const item = peersRef.current.find((p) => p.peerID === payload.id);
-//           if (item) {
-//             item.peer.signal(payload.signal);
-//           }
-//         });
-//       });
-
-//     return () => {
-//       socketRef.current.disconnect();
-//     };
-//   }, [roomID]);
-
-//   function createPeer(userToSignal, callerID, stream) {
-//     const peer = new Peer({
-//       initiator: true,
-//       trickle: false,
-//       stream,
-//       config: {
-//         iceServers: [
-//           { urls: "stun:stun.l.google.com:19302" },
-//           { urls: "stun:stun1.l.google.com:19302" },
-//         ],
-//       },
-//     });
-
-//     peer.on("signal", (signal) => {
-//       socketRef.current.emit("sending signal", {
-//         userToSignal,
-//         callerID,
-//         signal,
-//       });
-//     });
-
-//     return peer;
-//   }
-
-//   function addPeer(incomingSignal, callerID, stream) {
-//     const peer = new Peer({
-//       initiator: false,
-//       trickle: false,
-//       stream,
-//       config: {
-//         iceServers: [
-//           { urls: "stun:stun.l.google.com:19302" },
-//           { urls: "stun:stun1.l.google.com:19302" },
-//         ],
-//       },
-//     });
-
-//     peer.on("signal", (signal) => {
-//       socketRef.current.emit("returning signal", { signal, callerID });
-//     });
-
-//     peer.signal(incomingSignal);
-
-//     return peer;
-//   }
-
-//   return (
-//      <div className="min-h-screen bg-gray-100 dark:bg-slate-900 p-6">
-//       <h1 className="text-2xl font-bold text-gray-800 dark:text-white mb-6 text-center">
-//         Meeting Room: {roomID}
-//       </h1>
-
-//       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-//         {/* Local User Video */}
-//         <Card className="p-0">
-//           <video
-//             muted
-//             ref={userVideo}
-//             autoPlay
-//             playsInline
-//             className="w-full h-64 object-cover rounded-2xl"
-//           />
-//           <p className="text-center text-sm mt-1 text-gray-700 dark:text-gray-200">
-//             You
-//           </p>
-//         </Card>
-
-//         {/* Remote Videos */}
-//         {remoteStreams.map((stream, index) => (
-//           <Card key={index} className="p-0">
-//             <Video stream={stream} />
-//           </Card>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default MeetingRoom;
-
-//-------------------------------------------------------------------------------------------
-
-// import React, { useEffect, useRef, useState } from "react";
-// import io from "socket.io-client";
-// import Peer from "simple-peer";
-// import Video from "./Video";
-// import InfoPanel from "./InfoPanel";
-// import { Card } from "@/components/ui/card";
-// import { Button } from "@/components/ui/button";
-// import {
-//   Mic,
-//   MicOff,
-//   Video as VideoIcon,
-//   VideoOff,
-//   PhoneOff,
-//   Info,
-// } from "lucide-react";
-
-// const MeetingRoom = () => {
-//   const [remoteStreams, setRemoteStreams] = useState([]);
-//   const [micOn, setMicOn] = useState(true);
-//   const [camOn, setCamOn] = useState(true);
-//   const [showInfo, setShowInfo] = useState(false);
-//   const [active, setActive] = useState(true); // 🔹 UI visible or hidden
-
-//   const socketRef = useRef();
-//   const userVideo = useRef();
-//   const peersRef = useRef([]);
-//   const localStream = useRef();
-//   const roomID = window.location.pathname.split("/meeting/")[1];
-
-//   const hostName = "Host User";
-//   const meetingPassword = "hidden"; // not shown, only for backend
-//   const joinLink = `${window.location.origin}/join?meetingId=${roomID}&pwd=${meetingPassword}`;
-
-//   useEffect(() => {
-//     socketRef.current = io(
-//       import.meta.env.VITE_BACKEND || "http://localhost:5000"
-//     );
-
-//     navigator.mediaDevices
-//       .getUserMedia({ video: true, audio: true })
-//       .then((stream) => {
-//         localStream.current = stream;
-//         if (userVideo.current) {
-//           userVideo.current.srcObject = stream;
-//         }
-
-//         socketRef.current.emit("join room", roomID);
-
-//         socketRef.current.on("all users", (users) => {
-//           users.forEach((userID) => {
-//             const peer = createPeer(userID, socketRef.current.id, stream);
-//             peersRef.current.push({ peerID: userID, peer });
-
-//             peer.on("stream", (remoteStream) => {
-//               addRemoteStream(remoteStream, userID);
-//             });
-//           });
-//         });
-
-//         socketRef.current.on("user joined", (payload) => {
-//           const peer = addPeer(payload.signal, payload.callerID, stream);
-//           peersRef.current.push({ peerID: payload.callerID, peer });
-
-//           peer.on("stream", (remoteStream) => {
-//             addRemoteStream(remoteStream, payload.callerID);
-//           });
-//         });
-
-//         socketRef.current.on("receiving returned signal", (payload) => {
-//           const item = peersRef.current.find((p) => p.peerID === payload.id);
-//           if (item) {
-//             item.peer.signal(payload.signal);
-//           }
-//         });
-//       });
-
-//     return () => {
-//       socketRef.current.disconnect();
-//       localStream.current?.getTracks().forEach((track) => track.stop());
-//     };
-//   }, [roomID]);
-
-//   const addRemoteStream = (stream, peerID) => {
-//     setRemoteStreams((prev) => {
-//       if (prev.find((s) => s.peerID === peerID)) return prev;
-//       return [...prev, { stream, peerID }];
-//     });
-//   };
-
-//   function createPeer(userToSignal, callerID, stream) {
-//     const peer = new Peer({
-//       initiator: true,
-//       trickle: false,
-//       stream,
-//       config: {
-//         iceServers: [
-//           { urls: "stun:stun.l.google.com:19302" },
-//           { urls: "stun:stun1.l.google.com:19302" },
-//         ],
-//       },
-//     });
-
-//     peer.on("signal", (signal) => {
-//       socketRef.current.emit("sending signal", {
-//         userToSignal,
-//         callerID,
-//         signal,
-//       });
-//     });
-
-//     return peer;
-//   }
-
-//   function addPeer(incomingSignal, callerID, stream) {
-//     const peer = new Peer({
-//       initiator: false,
-//       trickle: false,
-//       stream,
-//       config: {
-//         iceServers: [
-//           { urls: "stun:stun.l.google.com:19302" },
-//           { urls: "stun:stun1.l.google.com:19302" },
-//         ],
-//       },
-//     });
-
-//     peer.on("signal", (signal) => {
-//       socketRef.current.emit("returning signal", { signal, callerID });
-//     });
-
-//     peer.signal(incomingSignal);
-//     return peer;
-//   }
-//   // 🔹 Detect mouse inactivity
-//   useEffect(() => {
-//     let timeout;
-//     const handleActivity = () => {
-//       setActive(true);
-//       clearTimeout(timeout);
-//       timeout = setTimeout(() => setActive(false), 3000); // hide after 3s
-//     };
-
-//     window.addEventListener("mousemove", handleActivity);
-//     window.addEventListener("keydown", handleActivity);
-
-//     return () => {
-//       window.removeEventListener("mousemove", handleActivity);
-//       window.removeEventListener("keydown", handleActivity);
-//       clearTimeout(timeout);
-//     };
-//   }, []);
-
-//   // ... (your socket + peer logic stays same)
-
-//   const toggleMic = () => {
-//     const audioTrack = localStream.current?.getAudioTracks()[0];
-//     if (audioTrack) {
-//       audioTrack.enabled = !audioTrack.enabled;
-//       setMicOn(audioTrack.enabled);
-//     }
-//   };
-
-//   const toggleCam = () => {
-//     const videoTrack = localStream.current?.getVideoTracks()[0];
-//     if (videoTrack) {
-//       videoTrack.enabled = !videoTrack.enabled;
-//       setCamOn(videoTrack.enabled);
-//     }
-//   };
-
-//   const leaveMeeting = () => {
-//     socketRef.current.disconnect();
-//     localStream.current?.getTracks().forEach((track) => track.stop());
-//     window.location.href = "/"; // back home
-//   };
-
-//   return (
-//     <div className="relative flex flex-col min-h-screen bg-background">
-//       {/* Info Panel */}
-//       <InfoPanel
-//         show={showInfo}
-//         onClose={() => setShowInfo(false)}
-//         roomID={roomID}
-//         hostName={hostName}
-//         joinLink={joinLink}
-//       />
-
-//       {/* Header (auto-hide) */}
-//       <header
-//         className={`absolute top-0 left-0 w-full flex justify-between items-center p-4 transition-opacity duration-300 ${
-//           active ? "opacity-100" : "opacity-0 pointer-events-none"
-//         } bg-background/80 backdrop-blur-md border-b z-10`}
-//       >
-//         <h1 className="text-lg font-semibold">
-//           Meeting <span className="text-muted-foreground">#{roomID}</span>
-//         </h1>
-//         <div className="flex items-center gap-2">
-//           <Button
-//             variant="outline"
-//             size="icon"
-//             onClick={() => setShowInfo(true)}
-//           >
-//             <Info className="w-5 h-5" />
-//           </Button>
-//           <Button variant="destructive" size="sm" onClick={leaveMeeting}>
-//             <PhoneOff className="w-4 h-4 mr-2" /> Leave
-//           </Button>
-//         </div>
-//       </header>
-
-//       {/* Video Grid */}
-//       <main className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
-//         {/* Local User Video */}
-//         <Card className="overflow-hidden">
-//           <Video
-//             stream={localStream.current}
-//             muted
-//             label="You"
-//             camOn={camOn}
-//             micOn={micOn}
-//           />
-//         </Card>
-
-//         {/* Remote Users */}
-//         {remoteStreams.map(({ stream, peerID }) => (
-//           <Card key={peerID} className="overflow-hidden">
-//             <Video
-//               stream={stream}
-//               label={`Peer ${peerID.slice(0, 5)}...`}
-//               // For now assume remote peers always have cam/mic on
-//               // (can be extended by signaling mic/cam state over socket)
-//               camOn={true}
-//               micOn={true}
-//             />
-//           </Card>
-//         ))}
-//       </main>
-
-//       {/* Controls (auto-hide, sticky bottom) */}
-//       <footer
-//         className={`absolute bottom-0 left-0 w-full flex justify-center items-center gap-6 p-4 transition-opacity duration-300 ${
-//           active ? "opacity-100" : "opacity-0 pointer-events-none"
-//         } bg-background/80 backdrop-blur-md border-t`}
-//       >
-//         <Button
-//           variant={micOn ? "default" : "secondary"}
-//           size="icon"
-//           onClick={toggleMic}
-//         >
-//           {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-//         </Button>
-//         <Button
-//           variant={camOn ? "default" : "secondary"}
-//           size="icon"
-//           onClick={toggleCam}
-//         >
-//           {camOn ? (
-//             <VideoIcon className="w-5 h-5" />
-//           ) : (
-//             <VideoOff className="w-5 h-5" />
-//           )}
-//         </Button>
-//         <Button variant="destructive" size="icon" onClick={leaveMeeting}>
-//           <PhoneOff className="w-5 h-5" />
-//         </Button>
-//       </footer>
-//     </div>
-//   );
-// };
-
-// export default MeetingRoom;
-
-//-------------------------------------------------------------------------------------------
-
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import Peer from "simple-peer";
@@ -440,6 +27,7 @@ const MeetingRoom = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [active, setActive] = useState(true);
   const [PshowInfo, setPShowInfo] = useState(false);
+  const [screenSharing, setScreenSharing] = useState(false);
 
   const socketRef = useRef();
   const userVideo = useRef();
@@ -599,6 +187,77 @@ const MeetingRoom = () => {
     peer.signal(incomingSignal);
     return peer;
   }
+  const toggleScreenShare = async () => {
+    if (!screenSharing) {
+      try {
+        if (!camOn) {
+          toggleCam();
+        }
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100,
+          },
+        });
+        const screenTrack = screenStream.getVideoTracks()[0];
+        const audioTrack = screenStream.getAudioTracks()[0]; // 🔥 NEW
+
+        // Replace video track in local stream
+        peersRef.current.forEach((peerObj) => {
+  const videoSender = peerObj.peer._pc
+    .getSenders()
+    .find((s) => s.track && s.track.kind === "video");
+  if (videoSender) videoSender.replaceTrack(screenTrack);
+
+  if (audioTrack) {
+    const audioSender = peerObj.peer._pc
+      .getSenders()
+      .find((s) => s.track && s.track.kind === "audio");
+    if (audioSender) audioSender.replaceTrack(audioTrack);
+  }
+});
+
+        // Update local video preview
+        if (userVideo.current) userVideo.current.srcObject = screenStream;
+
+        // When screen share ends (user presses stop in browser UI)
+        screenTrack.onended = () => toggleScreenShare();
+
+        setScreenSharing(true);
+      } catch (err) {
+        console.error("Error sharing screen:", err);
+      }
+    } else {
+      // Switch back to camera
+      const camStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: micOn,
+      });
+
+      const camTrack = camStream.getVideoTracks()[0];
+      const micTrack = camStream.getAudioTracks()[0];
+
+      peersRef.current.forEach((peerObj) => {
+  const videoSender = peerObj.peer._pc
+    .getSenders()
+    .find((s) => s.track && s.track.kind === "video");
+  if (videoSender) videoSender.replaceTrack(camTrack);
+
+  const audioSender = peerObj.peer._pc
+    .getSenders()
+    .find((s) => s.track && s.track.kind === "audio");
+  if (audioSender && micTrack) audioSender.replaceTrack(micTrack);
+});
+
+      // Restore local video preview
+      if (userVideo.current) userVideo.current.srcObject = camStream;
+
+      localStream.current = camStream;
+      setScreenSharing(false);
+    }
+  };
 
   // Auto-hide chrome
   useEffect(() => {
@@ -743,7 +402,14 @@ const MeetingRoom = () => {
           variant={PshowInfo ? "default" : "secondary"}
         >
           <Users className="w-5 h-5" />
-          
+        </Button>
+
+        <Button
+          variant={screenSharing ? "default" : "secondary"}
+          size="icon"
+          onClick={toggleScreenShare}
+        >
+          {screenSharing ? "🖥️" : "📺"}
         </Button>
 
         <Button
