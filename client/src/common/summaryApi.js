@@ -10,4 +10,7 @@ export const SummaryApi = {
   // Meetings - placeholder endpoints (implement server later)
   create_meeting: { url: "/api/meetings/create", method: "post" },
   join_meeting: { url: "/api/meetings/join", method: "post" },
+  
+  //chat
+  get_history: { url: "/api/chat/history", method: "post" },
 };

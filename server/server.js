@@ -17,8 +17,6 @@
 //   cors: { origin: process.env.CLIENT_URL || "*", methods: ["GET", "POST"] },
 // });
 
-
-
 // const users = {};
 // const socketToRoom = {};
 
@@ -26,7 +24,7 @@
 //      console.log("⚡ New socket connected:", socket.id);
 //     socket.on("join room", roomID => {
 //         console.log(`📢 ${socket.id} joined room: ${roomID}`);
-        
+
 //         if (users[roomID]) {
 //             const length = users[roomID].length;
 //             if (length === 4) {
@@ -65,7 +63,6 @@
 
 // });
 
-
 // app.use(cors({ origin: process.env.CLIENT_URL || "*", credentials: true }));
 // app.use(express.json());
 
@@ -90,11 +87,6 @@
 //     process.exit(1);
 //   });
 
-
-
-
-
-
 // --------------------------------------------------------------------------------------------------------------------
 
 import express from "express";
@@ -106,17 +98,24 @@ import cors from "cors";
 import Meeting from "./models/Meeting.js";
 import authRoutes from "./routes/auth.js";
 import meetingRoutes from "./routes/meeting.js";
+import chatRoutes from "./routes/chat.js";
+import Chat from "./models/Chat.js";
 
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173", credentials: true }));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
-
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/meetings", meetingRoutes);
+app.use("/api/chat", chatRoutes);
 
 const server = http.createServer(app);
 
@@ -138,36 +137,76 @@ io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
 
   // Client must send: { roomID, name }
-  socket.on("join room", ({ roomID, name = "User",video=true,audio=true } = {}) => {
-    if (!roomID) return;
+  socket.on(
+    "join room",
+    async ({
+      roomID,
+      name = "User",
+      userId = null,
+      video = true,
+      audio = true,
+    } = {}) => {
+      if (!roomID) return;
 
-    const usersMap = roomUsers.get(roomID) || new Map();
-    if (usersMap.size >= MAX_PEERS_PER_ROOM) {
-      socket.emit("room full");
-      return;
+      const usersMap = roomUsers.get(roomID) || new Map();
+      if (usersMap.size >= MAX_PEERS_PER_ROOM) {
+        socket.emit("room full");
+        return;
+      }
+
+      // save metadata
+      usersMap.set(socket.id, { name, audio, video });
+      roomUsers.set(roomID, usersMap);
+      socketRoom.set(socket.id, roomID);
+      socketName.set(socket.id, name);
+
+      socket.join(roomID);
+
+      // send existing users (except self)
+      const others = [...usersMap.entries()]
+        .filter(([id]) => id !== socket.id)
+        .map(([socketId, meta]) => ({
+          socketId,
+          name: meta.name,
+          audio: meta.audio,
+          video: meta.video,
+        }));
+      socket.emit("all users", others);
+
+      // notify room (except self)
+      socket.to(roomID).emit("new participant", {
+        socketId: socket.id,
+        name,
+      });
+
+      console.log(`📢 ${socket.id} (${name}) joined room ${roomID}`);
+
+      try {
+        let participantData;
+
+        if (userId) {
+          // logged-in user
+          participantData = { user: userId, joinedAt: new Date() };
+        } else {
+          // guest (no userId)
+          participantData = { guestName: name, joinedAt: new Date() };
+        }
+
+        await Meeting.findOneAndUpdate(
+          { meetingId: roomID },
+          { $addToSet: { participants: participantData } },
+          { new: true, upsert: false }
+        );
+      } catch (err) {
+        console.error("❌ Error saving participant:", err);
+      }
     }
+  );
 
-    // save metadata
-    usersMap.set(socket.id, { name,audio,video });
-    roomUsers.set(roomID, usersMap);
-    socketRoom.set(socket.id, roomID);
-    socketName.set(socket.id, name);
-
-    socket.join(roomID);
-
-    // send existing users (except self)
-    const others = [...usersMap.entries()]
-      .filter(([id]) => id !== socket.id)
-      .map(([socketId, meta]) => ({ socketId, name: meta.name,audio:meta.audio,video:meta.video }));
-    socket.emit("all users", others);
-
-    // notify room (except self)
-    socket.to(roomID).emit("new participant", {
-      socketId: socket.id,
-      name,
-    });
-
-    console.log(`📢 ${socket.id} (${name}) joined room ${roomID}`);
+  socket.on("sendMessage", async ({ meetingId, user, message }) => {
+    const msg = new Chat({ meetingId, user, message });
+    await msg.save();
+    io.to(meetingId).emit("receiveMessage", msg);
   });
 
   // WebRTC signaling (unchanged names added)
@@ -175,10 +214,7 @@ io.on("connection", (socket) => {
     const { userToSignal, signal } = payload;
     const callerID = socket.id;
     const callerName = socketName.get(socket.id) || "User";
-    console.log("173");
     if (userToSignal) {
-      console.log("175");
-      
       io.to(userToSignal).emit("user joined", {
         signal,
         callerID,
@@ -199,21 +235,23 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("media-update", ({ meetingId, peerId,video, audio }) => {
+  socket.on("media-update", ({ meetingId, peerId, video, audio }) => {
     const usersMap = roomUsers.get(meetingId);
-  if (usersMap && usersMap.has(peerId)) {
-    const meta = usersMap.get(peerId);
-    meta.video = video;
-    meta.audio = audio;
-    usersMap.set(peerId, meta);
-    roomUsers.set(meetingId, usersMap);
-  }
-    socket.to(meetingId).emit("participant-media-update", { peerId, video, audio });
-});
+    if (usersMap && usersMap.has(peerId)) {
+      const meta = usersMap.get(peerId);
+      meta.video = video;
+      meta.audio = audio;
+      usersMap.set(peerId, meta);
+      roomUsers.set(meetingId, usersMap);
+    }
+    socket
+      .to(meetingId)
+      .emit("participant-media-update", { peerId, video, audio });
+  });
 
-socket.on("leave room", ({ meetingId, peerId }) => {
-  socket.to(meetingId).emit("participant-left", peerId);
-});
+  socket.on("leave room", ({ meetingId, peerId }) => {
+    socket.to(meetingId).emit("participant-left", peerId);
+  });
 
   socket.on("disconnect", () => {
     const roomID = socketRoom.get(socket.id);
@@ -236,7 +274,6 @@ socket.on("leave room", ({ meetingId, peerId }) => {
     console.log(`❌ Disconnected: ${socket.id} (${name})`);
   });
 });
-
 
 // ---------------- START SERVER -----------------
 const PORT = process.env.PORT || 5000;

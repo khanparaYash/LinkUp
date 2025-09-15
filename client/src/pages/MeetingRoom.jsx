@@ -6,16 +6,14 @@ import InfoPanel from "./InfoPanel";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Mic,
-  MicOff,
   Video as VideoIcon,
-  VideoOff,
   PhoneOff,
   Info,
-  Users,
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import MeetingControl from "./MeetingControl";
 import ParticipantsSidebar from "./ParticipantsSidebar";
+import Chat from "./Chat";
 
 const MeetingRoom = () => {
   const location = useLocation();
@@ -27,6 +25,7 @@ const MeetingRoom = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [active, setActive] = useState(true);
   const [PshowInfo, setPShowInfo] = useState(false);
+  const [chatShow,setChatShow] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
 
   const socketRef = useRef();
@@ -43,6 +42,7 @@ const MeetingRoom = () => {
 
   const hostName = res.host.name;
   const joinLink = res.joinLink;
+  const userId = JSON.parse(localStorage?.getItem("user"))?.id;
 
   useEffect(() => {
     socketRef.current = io(
@@ -56,7 +56,11 @@ const MeetingRoom = () => {
         if (userVideo.current) userVideo.current.srcObject = stream;
 
         // JOIN with name
-        socketRef.current.emit("join room", { roomID, name: displayName });
+        socketRef.current.emit("join room", {
+          roomID,
+          name: displayName,
+          userId,
+        });
 
         // Existing users -> create offer for each
         socketRef.current.on("all users", (users = []) => {
@@ -112,16 +116,6 @@ const MeetingRoom = () => {
           setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
           console.log(remoteStreams);
         });
-
-        // Optional: FYI event — not required for tiles
-        // socketRef.current.on(
-        //   "new participant",
-        //   ({ socketId: peerId, name }) => {
-        //     // Could update a sidebar participant list if you want
-        //     // console.log("🆕 New participant:", socketId, name);
-
-        //   }
-        // );
       });
 
     return () => {
@@ -206,18 +200,18 @@ const MeetingRoom = () => {
 
         // Replace video track in local stream
         peersRef.current.forEach((peerObj) => {
-  const videoSender = peerObj.peer._pc
-    .getSenders()
-    .find((s) => s.track && s.track.kind === "video");
-  if (videoSender) videoSender.replaceTrack(screenTrack);
+          const videoSender = peerObj.peer._pc
+            .getSenders()
+            .find((s) => s.track && s.track.kind === "video");
+          if (videoSender) videoSender.replaceTrack(screenTrack);
 
-  if (audioTrack) {
-    const audioSender = peerObj.peer._pc
-      .getSenders()
-      .find((s) => s.track && s.track.kind === "audio");
-    if (audioSender) audioSender.replaceTrack(audioTrack);
-  }
-});
+          if (audioTrack) {
+            const audioSender = peerObj.peer._pc
+              .getSenders()
+              .find((s) => s.track && s.track.kind === "audio");
+            if (audioSender) audioSender.replaceTrack(audioTrack);
+          }
+        });
 
         // Update local video preview
         if (userVideo.current) userVideo.current.srcObject = screenStream;
@@ -240,16 +234,16 @@ const MeetingRoom = () => {
       const micTrack = camStream.getAudioTracks()[0];
 
       peersRef.current.forEach((peerObj) => {
-  const videoSender = peerObj.peer._pc
-    .getSenders()
-    .find((s) => s.track && s.track.kind === "video");
-  if (videoSender) videoSender.replaceTrack(camTrack);
+        const videoSender = peerObj.peer._pc
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "video");
+        if (videoSender) videoSender.replaceTrack(camTrack);
 
-  const audioSender = peerObj.peer._pc
-    .getSenders()
-    .find((s) => s.track && s.track.kind === "audio");
-  if (audioSender && micTrack) audioSender.replaceTrack(micTrack);
-});
+        const audioSender = peerObj.peer._pc
+          .getSenders()
+          .find((s) => s.track && s.track.kind === "audio");
+        if (audioSender && micTrack) audioSender.replaceTrack(micTrack);
+      });
 
       // Restore local video preview
       if (userVideo.current) userVideo.current.srcObject = camStream;
@@ -323,6 +317,15 @@ const MeetingRoom = () => {
         hostName={hostName}
         joinLink={joinLink}
       />
+
+      <Chat
+      show={chatShow}
+        onClose={() => setChatShow(false)}
+        socket={socketRef.current}
+        meetingId={roomID}
+        currentUser={displayName}
+      />
+
       <ParticipantsSidebar
         show={PshowInfo}
         onClose={() => setPShowInfo(false)}
@@ -392,49 +395,7 @@ const MeetingRoom = () => {
       </main>
 
       {/* Controls */}
-      <footer
-        className={`absolute bottom-0 left-0 w-full flex justify-center items-center gap-6 p-4 transition-opacity duration-300 ${
-          active ? "opacity-100" : "opacity-0 pointer-events-none"
-        } bg-background/80 backdrop-blur-md border-t`}
-      >
-        <Button
-          onClick={() => setPShowInfo(true)}
-          variant={PshowInfo ? "default" : "secondary"}
-        >
-          <Users className="w-5 h-5" />
-        </Button>
-
-        <Button
-          variant={screenSharing ? "default" : "secondary"}
-          size="icon"
-          onClick={toggleScreenShare}
-        >
-          {screenSharing ? "🖥️" : "📺"}
-        </Button>
-
-        <Button
-          variant={micOn ? "default" : "secondary"}
-          size="icon"
-          onClick={toggleMic}
-        >
-          {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
-        </Button>
-
-        <Button
-          variant={camOn ? "default" : "secondary"}
-          size="icon"
-          onClick={toggleCam}
-        >
-          {camOn ? (
-            <VideoIcon className="w-5 h-5" />
-          ) : (
-            <VideoOff className="w-5 h-5" />
-          )}
-        </Button>
-        <Button variant="destructive" size="icon" onClick={leaveMeeting}>
-          <PhoneOff className="w-5 h-5" />
-        </Button>
-      </footer>
+      <MeetingControl active={active} setChatShow={setChatShow} setPShowInfo={setPShowInfo} PshowInfo={PshowInfo} chatShow={chatShow} screenSharing={screenSharing} toggleScreenShare={toggleScreenShare} micOn={micOn} toggleMic={toggleMic} toggleCam={toggleCam} camOn={camOn} leaveMeeting={leaveMeeting} />
     </div>
   );
 };
