@@ -9,7 +9,7 @@ export const SocketContext = createContext(null);
 export const useSocket = () => useContext(SocketContext);
 
 const SocketProvider = ({ children }) => {
-  const socket = useMemo(() => io("http://localhost:5000"),[]);
+  const socket = useMemo(() => io(import.meta.env.VITE_BACKEND ),[]);
 
   return (
     <SocketContext.Provider value={ socket }>

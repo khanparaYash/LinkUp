@@ -1,8 +1,5 @@
 // src/App.jsx
-import { Outlet, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/mode-toggle";
-import { Toaster } from "@/components/ui/toaster";
+import { Outlet} from "react-router-dom";
 import Header from "./components/Header";
 import {  useEffect } from "react";
 import { callApi } from "./api/callApi";
@@ -38,7 +35,7 @@ useEffect(() => {
       {/* Main content */}
       <main className="flex-1 container mx-auto p-6">
         <Outlet />
-        <Toaster />
+       
       </main>
 
       {/* Footer */}

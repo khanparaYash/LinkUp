@@ -1,4 +1,4 @@
-export const baseURL = import.meta.env.VITE_BACKEND || "http://localhost:5000";
+export const baseURL = import.meta.env.VITE_BACKEND ;
 
 export const SummaryApi = {
   // Auth

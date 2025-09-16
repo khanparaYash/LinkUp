@@ -5,11 +5,7 @@ import Video from "./Video";
 import InfoPanel from "./InfoPanel";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Video as VideoIcon,
-  PhoneOff,
-  Info,
-} from "lucide-react";
+import { Video as VideoIcon, PhoneOff, Info } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import MeetingControl from "./MeetingControl";
 import ParticipantsSidebar from "./ParticipantsSidebar";
@@ -25,7 +21,7 @@ const MeetingRoom = () => {
   const [showInfo, setShowInfo] = useState(false);
   const [active, setActive] = useState(true);
   const [PshowInfo, setPShowInfo] = useState(false);
-  const [chatShow,setChatShow] = useState(false);
+  const [chatShow, setChatShow] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
 
   const socketRef = useRef();
@@ -40,8 +36,8 @@ const MeetingRoom = () => {
     localStorage.getItem("guestName") ||
     "Guest";
 
-  const hostName = res.host.name;
-  const joinLink = res.joinLink;
+  const hostName = res?.host?.name;
+  const joinLink = res?.joinLink;
   const userId = JSON.parse(localStorage?.getItem("user"))?.id;
 
   useEffect(() => {
@@ -319,7 +315,7 @@ const MeetingRoom = () => {
       />
 
       <Chat
-      show={chatShow}
+        show={chatShow}
         onClose={() => setChatShow(false)}
         socket={socketRef.current}
         meetingId={roomID}
@@ -395,7 +391,20 @@ const MeetingRoom = () => {
       </main>
 
       {/* Controls */}
-      <MeetingControl active={active} setChatShow={setChatShow} setPShowInfo={setPShowInfo} PshowInfo={PshowInfo} chatShow={chatShow} screenSharing={screenSharing} toggleScreenShare={toggleScreenShare} micOn={micOn} toggleMic={toggleMic} toggleCam={toggleCam} camOn={camOn} leaveMeeting={leaveMeeting} />
+      <MeetingControl
+        active={active}
+        setChatShow={setChatShow}
+        setPShowInfo={setPShowInfo}
+        PshowInfo={PshowInfo}
+        chatShow={chatShow}
+        screenSharing={screenSharing}
+        toggleScreenShare={toggleScreenShare}
+        micOn={micOn}
+        toggleMic={toggleMic}
+        toggleCam={toggleCam}
+        camOn={camOn}
+        leaveMeeting={leaveMeeting}
+      />
     </div>
   );
 };

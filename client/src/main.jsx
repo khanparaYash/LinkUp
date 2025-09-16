@@ -8,6 +8,7 @@ import SocketProvider from "./context/SocketProvider.jsx";
 import { Buffer } from 'buffer'
 import process from 'process'
 import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/toaster";
 
 if (!window.Buffer) window.Buffer = Buffer
 if (!window.process) window.process = process
@@ -17,6 +18,7 @@ createRoot(document.getElementById("root")).render(
     <SocketProvider>
       <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme" attribute="class">
       <RouterProvider router={router} />
+       <Toaster />
       </ThemeProvider>
     </SocketProvider>
   </Provider>

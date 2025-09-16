@@ -23,6 +23,7 @@ function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,scre
       <Button
         onClick={() => setPShowInfo((p) => !p)}
         variant={PshowInfo ? "default" : "secondary"}
+        id="participant-toggle-btn"
       >
         <Users className="w-5 h-5" />
       </Button>
@@ -30,6 +31,7 @@ function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,scre
       <Button
         onClick={() => setChatShow((p) => !p)}
         variant={chatShow ? "default" : "secondary"}
+        id="chat-toggle-btn"
       >
         <MessageCircleMore className="w-5 h-5" />
       </Button>
