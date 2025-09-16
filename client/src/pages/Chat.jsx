@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X, MessageCircle, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { callApi } from "@/api/callApi";
 import { SummaryApi } from "@/common/summaryApi";
 import { motion, AnimatePresence } from "framer-motion";

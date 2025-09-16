@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/Button"
 import { Link as LinkIcon, X } from "lucide-react"
 import { toast } from "sonner";
 

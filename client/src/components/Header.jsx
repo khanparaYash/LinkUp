@@ -2,7 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "@/slices/authSlice";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { ModeToggle } from "@/components/mode-toggle";
 
 export default function Header() {

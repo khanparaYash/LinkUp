@@ -11,7 +11,7 @@ import {
   ScreenShareOff,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 
 function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,screenSharing,toggleScreenShare,micOn,toggleMic,toggleCam,camOn,leaveMeeting}) {
   return (

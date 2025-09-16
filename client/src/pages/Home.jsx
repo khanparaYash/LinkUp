@@ -1,6 +1,6 @@
 // src/pages/Home.jsx
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { motion } from "framer-motion";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "@/slices/authSlice";
