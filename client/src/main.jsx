@@ -8,7 +8,7 @@ import SocketProvider from "./context/SocketProvider.jsx";
 import { Buffer } from 'buffer'
 import process from 'process'
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/Toaster";
 
 if (!window.Buffer) window.Buffer = Buffer
 if (!window.process) window.process = process
