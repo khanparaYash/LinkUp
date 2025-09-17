@@ -1,4 +1,3 @@
-
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
@@ -10,13 +9,14 @@ import authRoutes from "./routes/auth.js";
 import meetingRoutes from "./routes/meeting.js";
 import chatRoutes from "./routes/chat.js";
 import Chat from "./models/Chat.js";
+import { log } from "console";
 
 dotenv.config();
 
 const app = express();
 app.use(
   cors({
-    origin: process.env.CLIENT_URL ,
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
@@ -42,6 +42,7 @@ const roomUsers = new Map();
 const socketRoom = new Map();
 // socketId -> name
 const socketName = new Map();
+const roomHosts = new Map(); // roomID -> socketId
 
 io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
@@ -55,43 +56,63 @@ io.on("connection", (socket) => {
       userId = null,
       video = true,
       audio = true,
+      
     } = {}) => {
       if (!roomID) return;
-
-      const usersMap = roomUsers.get(roomID) || new Map();
-      if (usersMap.size >= MAX_PEERS_PER_ROOM) {
-        socket.emit("room full");
-        return;
-      }
-
-      // save metadata
-      usersMap.set(socket.id, { name, audio, video });
-      roomUsers.set(roomID, usersMap);
-      socketRoom.set(socket.id, roomID);
-      socketName.set(socket.id, name);
-
-      socket.join(roomID);
-
-      // send existing users (except self)
-      const others = [...usersMap.entries()]
-        .filter(([id]) => id !== socket.id)
-        .map(([socketId, meta]) => ({
-          socketId,
-          name: meta.name,
-          audio: meta.audio,
-          video: meta.video,
-        }));
-      socket.emit("all users", others);
-
-      // notify room (except self)
-      socket.to(roomID).emit("new participant", {
-        socketId: socket.id,
-        name,
-      });
-
-      console.log(`📢 ${socket.id} (${name}) joined room ${roomID}`);
-
       try {
+        const meeting = await Meeting.findOne({ meetingId: roomID });
+        let isHost = false;
+      if (meeting&&userId && meeting.host.toString() === userId.toString()) {
+        isHost = true;
+      }
+        const usersMap = roomUsers.get(roomID) || new Map();
+        if (usersMap.size >= MAX_PEERS_PER_ROOM) {
+          socket.emit("room full");
+          return;
+        }
+        console.log(isHost);
+        console.log(roomHosts);
+
+        if (isHost) {
+          roomHosts.set(roomID, socket.id);
+          io.to(roomID).emit("host-joined"); // notify everyone waiting
+          console.log(`👑 Host joined for room ${roomID}`);
+        } else {
+          // ✅ If not host → check if host exists
+          const hostId = roomHosts.get(roomID);
+          if (!hostId || !io.sockets.sockets.get(hostId)) {
+            socket.emit("waiting-for-host");
+            console.log(`⏳ ${name} is waiting for host in room ${roomID}`);
+          }
+        }
+
+        // save metadata
+        usersMap.set(socket.id, { name, audio, video });
+        roomUsers.set(roomID, usersMap);
+        socketRoom.set(socket.id, roomID);
+        socketName.set(socket.id, name);
+
+        socket.join(roomID);
+
+        // send existing users (except self)
+        const others = [...usersMap.entries()]
+          .filter(([id]) => id !== socket.id)
+          .map(([socketId, meta]) => ({
+            socketId,
+            name: meta.name,
+            audio: meta.audio,
+            video: meta.video,
+          }));
+        socket.emit("all users", others);
+
+        // notify room (except self)
+        socket.to(roomID).emit("new participant", {
+          socketId: socket.id,
+          name,
+        });
+
+        console.log(`📢 ${socket.id} (${name}) joined room ${roomID}`);
+
         let participantData;
 
         if (userId) {
@@ -166,6 +187,14 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     const roomID = socketRoom.get(socket.id);
     const name = socketName.get(socket.id) || "User";
+
+    if (roomID && roomHosts.get(roomID) === socket.id) {
+      roomHosts.delete(roomID);
+      io.to(roomID).emit("host-left");
+      console.log(`👑 Host left room ${roomID}`);
+      console.log(roomHosts + "193");
+    }
+    console.log(roomHosts + "196");
 
     if (roomID && roomUsers.has(roomID)) {
       const usersMap = roomUsers.get(roomID);
