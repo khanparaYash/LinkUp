@@ -1,6 +1,6 @@
 import React from "react"
 import { Hourglass, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/Button"
 
 const WaitingForHost = ({ leaveMeeting }) => {
   return (
