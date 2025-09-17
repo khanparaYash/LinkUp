@@ -60,7 +60,7 @@ const Video = ({ stream, muted = false, label = "Participant", camOn = true, mic
           autoPlay
           playsInline
           muted={muted}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${
+          className={`w-full h-full object-cover scale-x-[-1] transition-opacity duration-300 ${
             camOn ? "opacity-100" : "opacity-0"
           }`}
         />

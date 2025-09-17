@@ -16,9 +16,9 @@ import { Button } from "@/components/ui/Button";
 function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,screenSharing,toggleScreenShare,micOn,toggleMic,toggleCam,camOn,leaveMeeting}) {
   return (
     <footer
-      className={`absolute bottom-0 left-0 w-full flex justify-center items-center gap-6 p-4 transition-opacity duration-300 ${
+      className={`fixed bottom-0 left-0 w-full flex justify-center items-center gap-6 p-4 transition-opacity duration-300 ${
         active ? "opacity-100" : "opacity-0 pointer-events-none"
-      } bg-background/80 backdrop-blur-md border-t`}
+      } bg-background/80 backdrop-blur-md border-t `}
     >
       <Button
         onClick={() => setPShowInfo((p) => !p)}

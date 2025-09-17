@@ -10,6 +10,7 @@ import { useLocation } from "react-router-dom";
 import MeetingControl from "./MeetingControl";
 import ParticipantsSidebar from "./ParticipantsSidebar";
 import Chat from "./Chat";
+import { toast } from "sonner";
 
 const MeetingRoom = () => {
   const location = useLocation();
@@ -177,9 +178,20 @@ const MeetingRoom = () => {
     peer.signal(incomingSignal);
     return peer;
   }
+
+  function isScreenShareSupported() {
+    return !!navigator.mediaDevices?.getDisplayMedia;
+  }
+
   const toggleScreenShare = async () => {
     if (!screenSharing) {
       try {
+        if (!isScreenShareSupported()) {
+          toast.error(
+            "Screen sharing is not supported on this browser"
+          );
+          return;
+        }
         if (!camOn) {
           toggleCam();
         }
