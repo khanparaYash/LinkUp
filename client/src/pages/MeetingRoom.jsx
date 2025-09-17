@@ -11,10 +11,11 @@ import MeetingControl from "./MeetingControl";
 import ParticipantsSidebar from "./ParticipantsSidebar";
 import Chat from "./Chat";
 import { toast } from "sonner";
+import WaitingForHost from "./WaitingForHost";
 
 const MeetingRoom = () => {
   const location = useLocation();
-  const res = location.state;
+  const res = location.state.res;
 
   const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name,video,audio }]
   const [micOn, setMicOn] = useState(true);
@@ -24,6 +25,8 @@ const MeetingRoom = () => {
   const [PshowInfo, setPShowInfo] = useState(false);
   const [chatShow, setChatShow] = useState(false);
   const [screenSharing, setScreenSharing] = useState(false);
+  const [waitingForHost, setWaitingForHost] = useState(false);
+  const [hostPresent, setHostPresent] = useState(false);
 
   const socketRef = useRef();
   const userVideo = useRef();
@@ -45,6 +48,20 @@ const MeetingRoom = () => {
     socketRef.current = io(
       import.meta.env.VITE_BACKEND || "http://localhost:5000"
     );
+    socketRef.current.on("waiting-for-host", () => {
+      setWaitingForHost(true);
+    });
+
+    socketRef.current.on("host-joined", () => {
+      setHostPresent(true);
+      setWaitingForHost(false);
+    });
+    socketRef.current.on("host-left", () => {
+    
+      setHostPresent(false);
+      setWaitingForHost(true);
+      toast.error("Host left. You are waiting until host rejoins.");
+    });
 
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
@@ -58,6 +75,7 @@ const MeetingRoom = () => {
           name: displayName,
           userId,
         });
+        
 
         // Existing users -> create offer for each
         socketRef.current.on("all users", (users = []) => {
@@ -101,7 +119,7 @@ const MeetingRoom = () => {
               return updated;
             });
 
-            console.log(remoteStreams);
+           
           }
         );
 
@@ -111,7 +129,7 @@ const MeetingRoom = () => {
             (p) => p.peerID !== socketId
           );
           setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
-          console.log(remoteStreams);
+         
         });
       });
 
@@ -187,9 +205,7 @@ const MeetingRoom = () => {
     if (!screenSharing) {
       try {
         if (!isScreenShareSupported()) {
-          toast.error(
-            "Screen sharing is not supported on this browser"
-          );
+          toast.error("Screen sharing is not supported on this browser");
           return;
         }
         if (!camOn) {
@@ -316,7 +332,9 @@ const MeetingRoom = () => {
     window.location.href = "/";
   };
 
-  return (
+  return waitingForHost && !hostPresent ? (
+    <WaitingForHost leaveMeeting={leaveMeeting} />
+  ) : (
     <div className="relative flex flex-col min-h-screen bg-background">
       <InfoPanel
         show={showInfo}

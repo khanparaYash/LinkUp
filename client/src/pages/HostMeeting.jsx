@@ -33,7 +33,7 @@ function HostMeeting() {
       toast.info(`Meeting ID: ${res.meetingId}`);
       toast.info(`Password: ${password}`);
 
-      navigate(`/meeting/${res.meetingId}`,{ state: res });
+      navigate(`/meeting/${res.meetingId}`,{ state: {res:res} });
     } catch (err) {
       toast.error(err.msg || "Unable to create meeting");
     } finally {
