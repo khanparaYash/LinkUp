@@ -59,8 +59,7 @@ const navigate=useNavigate()
     );
     if(!res){
       navigate(`/join?meetingId=${roomID}`)
-      return ;
-    }else{
+    }
     socketRef.current.on("waiting-for-host", () => {
       setWaitingForHost(true);
     });
@@ -146,7 +145,7 @@ const navigate=useNavigate()
           setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
         });
       });
-}
+
     return () => {
       socketRef.current?.disconnect();
       localStream.current?.getTracks().forEach((t) => t.stop());
