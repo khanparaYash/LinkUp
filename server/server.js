@@ -56,22 +56,51 @@ io.on("connection", (socket) => {
       userId = null,
       video = true,
       audio = true,
-      
+      deviceId,
     } = {}) => {
       if (!roomID) return;
       try {
         const meeting = await Meeting.findOne({ meetingId: roomID });
         let isHost = false;
-      if (meeting&&userId && meeting.host.toString() === userId.toString()) {
-        isHost = true;
-      }
+        if (
+          meeting &&
+          userId &&
+          meeting.host.toString() === userId.toString()
+        ) {
+          isHost = true;
+        }
+
         const usersMap = roomUsers.get(roomID) || new Map();
+
+        if (deviceId) {
+          for (const [sid, meta] of usersMap.entries()) {
+            if (meta.deviceId === deviceId) {
+              console.log(
+                `👀 Duplicate device detected. Kicking old socket ${sid}`
+              );
+              const oldSocket = io.sockets.sockets.get(sid);
+              if (oldSocket) {
+                oldSocket.leave(roomID);
+                oldSocket.emit("duplicate-kicked"); // notify frontend
+                oldSocket.disconnect(true);
+              }
+              usersMap.delete(sid);
+              await Meeting.findOneAndUpdate(
+                { meetingId: roomID },
+                {
+                  $pull: {
+                    participants: { deviceId },
+                  },
+                }
+              );
+            }
+          }
+        }
+
         if (usersMap.size >= MAX_PEERS_PER_ROOM) {
           socket.emit("room full");
           return;
         }
-        console.log(isHost);
-        console.log(roomHosts);
 
         if (isHost) {
           roomHosts.set(roomID, socket.id);
@@ -87,7 +116,7 @@ io.on("connection", (socket) => {
         }
 
         // save metadata
-        usersMap.set(socket.id, { name, audio, video });
+        usersMap.set(socket.id, { name, audio, video, deviceId });
         roomUsers.set(roomID, usersMap);
         socketRoom.set(socket.id, roomID);
         socketName.set(socket.id, name);
@@ -113,20 +142,33 @@ io.on("connection", (socket) => {
 
         console.log(`📢 ${socket.id} (${name}) joined room ${roomID}`);
 
-        let participantData;
+        const participantData = userId
+          ? { user: userId, deviceId, joinedAt: new Date() }
+          : { guestName: name, deviceId, joinedAt: new Date() };
 
+        // If logged-in user (host or normal), remove old entries by userId
         if (userId) {
-          // logged-in user
-          participantData = { user: userId, joinedAt: new Date() };
-        } else {
-          // guest (no userId)
-          participantData = { guestName: name, joinedAt: new Date() };
+          await Meeting.findOneAndUpdate(
+            { meetingId: roomID },
+            {
+              $pull: { participants: { user: userId } }, // remove any existing entry for this user
+            }
+          );
+        } else if (deviceId) {
+          // If guest → dedupe by deviceId
+          await Meeting.findOneAndUpdate(
+            { meetingId: roomID },
+            {
+              $pull: { participants: { deviceId } }, // remove any existing entry for this device
+            }
+          );
         }
 
+        // Now safely push new entry
         await Meeting.findOneAndUpdate(
           { meetingId: roomID },
-          { $addToSet: { participants: participantData } },
-          { new: true, upsert: false }
+          { $push: { participants: participantData } },
+          { new: true }
         );
       } catch (err) {
         console.error("❌ Error saving participant:", err);

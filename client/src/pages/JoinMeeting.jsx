@@ -16,7 +16,7 @@ function JoinMeeting() {
 
   const [meetingId, setMeetingId] = useState("")
   const [password, setPassword] = useState("")
-  const [guestName, setGuestName] = useState("")
+  const [guestName, setGuestName] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -35,15 +35,22 @@ function JoinMeeting() {
     try {
       const payload = { meetingId, password }
       if (!isAuthenticated) {
-        payload.guestName = guestName || "Guest"
+        payload.guestName = guestName || localStorage.getItem("displayName")||"guest"
+      }else{
+        payload.guestName = JSON.parse(localStorage.getItem("user")).name||"guest"
+
+        console.log(payload);
+        
       }
-      // after user types name on Join page
+      
+      
+      
       
       const res = await callApi(SummaryApi.join_meeting, payload)
       
-      localStorage.setItem("displayName",guestName );
+      localStorage.setItem("displayName",guestName|| payload.guestName);
       toast.success("Joined meeting successfully 🎉");
-      navigate(`/meeting/${res.meetingId}`,{ state: {res}});
+      navigate(`/meeting/${res?.meetingId}`,{ state: {res}});
     } catch (err) {
       toast.error(err.msg || "Unable to join meeting")
     } finally {

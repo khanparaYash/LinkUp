@@ -68,22 +68,9 @@ router.post("/join", optionalAuth, async (req, res) => {
     const isMatch = await bcrypt.compare(password, meeting.password);
     if (!isMatch) return res.status(401).json({ msg: "Invalid password" });
 
-    // add participant
-    if (req.user) {
-      const alreadyJoined = meeting.participants.some(
-        (p) => p.user?.toString() === req.user._id.toString()
-      );
-      if (!alreadyJoined) {
-        meeting.participants.push({ user: req.user._id });
-      }
-    } else {
-      const guestCount = meeting.participants.filter((p) => p.guestName).length;
-      meeting.participants.push({
-        guestName: guestName || `Guest ${guestCount + 1}`,
-      });
-    }
+    
 
-    await meeting.save();
+    
 
     res.json({
       meetingId: meeting.meetingId,

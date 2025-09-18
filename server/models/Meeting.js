@@ -11,6 +11,7 @@ const meetingSchema = new mongoose.Schema({
       user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // link to User
       guestName: { type: String }, // if not logged in
       joinedAt: { type: Date, default: Date.now },
+      deviceId:{type: String},
     },
   ],
 });

@@ -6,7 +6,7 @@ import InfoPanel from "./InfoPanel";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Video as VideoIcon, PhoneOff, Info } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import MeetingControl from "./MeetingControl";
 import ParticipantsSidebar from "./ParticipantsSidebar";
 import Chat from "./Chat";
@@ -15,8 +15,9 @@ import WaitingForHost from "./WaitingForHost";
 
 const MeetingRoom = () => {
   const location = useLocation();
-  const res = location.state.res;
+  const res = location?.state?.res;
 
+const navigate=useNavigate()
   const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name,video,audio }]
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
@@ -36,20 +37,36 @@ const MeetingRoom = () => {
 
   // Prefer a value you store on Join/Host: localStorage.setItem('displayName', 'Alice')
   const displayName =
-    localStorage.getItem("displayName") ||
-    localStorage.getItem("guestName") ||
-    "Guest";
+    localStorage.getItem("displayName") || "Guest";
 
   const hostName = res?.host?.name;
+  
   const joinLink = res?.joinLink;
   const userId = JSON.parse(localStorage?.getItem("user"))?.id;
+
+  function getDeviceId() {
+    let id = localStorage.getItem("deviceId");
+    if (!id) {
+      id = crypto.randomUUID(); // Unique per device
+      localStorage.setItem("deviceId", id);
+    }
+    return id;
+  }
 
   useEffect(() => {
     socketRef.current = io(
       import.meta.env.VITE_BACKEND || "http://localhost:5000"
     );
+    if(!res){
+      navigate(`/join?meetingId=${roomID}`)
+      return ;
+    }else{
     socketRef.current.on("waiting-for-host", () => {
       setWaitingForHost(true);
+    });
+    socketRef.current.on("duplicate-kicked", () => {
+      toast.warning("⚠️ You are already in this meeting on this device.");
+      leaveMeeting();
     });
 
     socketRef.current.on("host-joined", () => {
@@ -57,7 +74,6 @@ const MeetingRoom = () => {
       setWaitingForHost(false);
     });
     socketRef.current.on("host-left", () => {
-    
       setHostPresent(false);
       setWaitingForHost(true);
       toast.error("Host left. You are waiting until host rejoins.");
@@ -70,12 +86,13 @@ const MeetingRoom = () => {
         if (userVideo.current) userVideo.current.srcObject = stream;
 
         // JOIN with name
+
         socketRef.current.emit("join room", {
           roomID,
           name: displayName,
           userId,
+          deviceId: getDeviceId(),
         });
-        
 
         // Existing users -> create offer for each
         socketRef.current.on("all users", (users = []) => {
@@ -118,8 +135,6 @@ const MeetingRoom = () => {
               console.log("🔄 Updated remoteStreams:", updated);
               return updated;
             });
-
-           
           }
         );
 
@@ -129,10 +144,9 @@ const MeetingRoom = () => {
             (p) => p.peerID !== socketId
           );
           setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
-         
         });
       });
-
+}
     return () => {
       socketRef.current?.disconnect();
       localStream.current?.getTracks().forEach((t) => t.stop());
