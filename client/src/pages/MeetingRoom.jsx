@@ -17,7 +17,7 @@ const MeetingRoom = () => {
   const location = useLocation();
   const res = location?.state?.res;
 
-const navigate=useNavigate()
+  const navigate = useNavigate();
   const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name,video,audio }]
   const [micOn, setMicOn] = useState(true);
   const [camOn, setCamOn] = useState(true);
@@ -36,11 +36,10 @@ const navigate=useNavigate()
   const roomID = window.location.pathname.split("/meeting/")[1];
 
   // Prefer a value you store on Join/Host: localStorage.setItem('displayName', 'Alice')
-  const displayName =
-    localStorage.getItem("displayName") || "Guest";
+  const displayName = localStorage.getItem("displayName") || "Guest";
 
   const hostName = res?.host?.name;
-  
+
   const joinLink = res?.joinLink;
   const userId = JSON.parse(localStorage?.getItem("user"))?.id;
 
@@ -52,13 +51,14 @@ const navigate=useNavigate()
     }
     return id;
   }
+  const fakeStream = new MediaStream();
 
   useEffect(() => {
     socketRef.current = io(
       import.meta.env.VITE_BACKEND || "http://localhost:5000"
     );
-    if(!res){
-      navigate(`/join?meetingId=${roomID}`)
+    if (!res) {
+      navigate(`/join?meetingId=${roomID}`);
     }
     socketRef.current.on("waiting-for-host", () => {
       setWaitingForHost(true);
@@ -81,70 +81,100 @@ const navigate=useNavigate()
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {
+        // ✅ User allowed permissions
         localStream.current = stream;
         if (userVideo.current) userVideo.current.srcObject = stream;
 
-        // JOIN with name
+        joinRoom(true, true, stream);
+      })
+      .catch((err) => {
+        console.warn("⚠️ User denied mic/camera:", err);
 
-        socketRef.current.emit("join room", {
-          roomID,
-          name: displayName,
-          userId,
-          deviceId: getDeviceId(),
-        });
+        // Fake stream with empty tracks
 
-        // Existing users -> create offer for each
-        socketRef.current.on("all users", (users = []) => {
-          users.forEach(({ socketId, name, audio = true, video = true }) => {
-            const peer = createPeer(socketId, socketRef.current.id, stream);
-            peersRef.current.push({ peerID: socketId, peer, name });
-            peer.on("stream", (remoteStream) => {
-              addRemoteStream(remoteStream, socketId, name, audio, video);
-            });
-          });
-        });
+        // Add disabled tracks so peers know about this user
+        const audioCtx = new AudioContext();
+        const oscillator = audioCtx.createOscillator();
+        const dst = oscillator.connect(audioCtx.createMediaStreamDestination());
+        fakeStream.addTrack(dst.stream.getAudioTracks()[0]);
+        oscillator.start();
+        oscillator.stop();
 
-        // Someone joined -> we are the callee
-        socketRef.current.on("user joined", (payload) => {
-          const { signal, callerID, callerName } = payload;
-          const peer = addPeer(signal, callerID, stream);
-          peersRef.current.push({
-            peerID: callerID,
-            peer,
-            name: callerName || "User",
-          });
+        // Create a fake video track (black screen)
+        const canvas = document.createElement("canvas");
+        canvas.width = 640;
+        canvas.height = 480;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const streamTrack = canvas.captureStream().getVideoTracks()[0];
+        fakeStream.addTrack(streamTrack);
+
+        joinRoom(false, false, fakeStream);
+      });
+
+    function joinRoom(video, audio, stream) {
+      socketRef.current.emit("join room", {
+        roomID,
+        name: displayName,
+        userId,
+        deviceId: getDeviceId(),
+        video,
+        audio,
+      });
+
+      // Existing users -> create offer for each
+      socketRef.current.on("all users", (users = []) => {
+        users.forEach(({ socketId, name, audio, video }) => {
+          const peer = createPeer(socketId, socketRef.current.id, stream);
+          peersRef.current.push({ peerID: socketId, peer, name });
           peer.on("stream", (remoteStream) => {
-            addRemoteStream(remoteStream, callerID, callerName || "User");
+            addRemoteStream(remoteStream, socketId, name, audio, video);
           });
-        });
-
-        // Answer comes back to initial offer
-        socketRef.current.on("receiving returned signal", (payload) => {
-          const item = peersRef.current.find((p) => p.peerID === payload.id);
-          if (item) item.peer.signal(payload.signal);
-        });
-
-        socketRef.current.on(
-          "participant-media-update",
-          ({ peerId, video, audio }) => {
-            setRemoteStreams((prev) => {
-              const updated = prev.map((p) =>
-                p.peerID === peerId ? { ...p, video, audio } : p
-              );
-              console.log("🔄 Updated remoteStreams:", updated);
-              return updated;
-            });
-          }
-        );
-
-        // Remove UI when someone leaves
-        socketRef.current.on("participant left", ({ socketId }) => {
-          peersRef.current = peersRef.current.filter(
-            (p) => p.peerID !== socketId
-          );
-          setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
         });
       });
+
+      // Someone joined -> we are the callee
+      socketRef.current.on("user joined", (payload) => {
+        const { signal, callerID, callerName } = payload;
+        const peer = addPeer(signal, callerID, stream);
+        peersRef.current.push({
+          peerID: callerID,
+          peer,
+          name: callerName || "User",
+        });
+        peer.on("stream", (remoteStream) => {
+          addRemoteStream(remoteStream, callerID, callerName || "User");
+        });
+      });
+
+      // Answer comes back to initial offer
+      socketRef.current.on("receiving returned signal", (payload) => {
+        const item = peersRef.current.find((p) => p.peerID === payload.id);
+        if (item) item.peer.signal(payload.signal);
+      });
+
+      socketRef.current.on(
+        "participant-media-update",
+        ({ peerId, video, audio }) => {
+          setRemoteStreams((prev) => {
+            const updated = prev.map((p) =>
+              p.peerID === peerId ? { ...p, video, audio } : p
+            );
+            console.log("🔄 Updated remoteStreams:", updated);
+            return updated;
+          });
+        }
+      );
+
+      // Remove UI when someone leaves
+      socketRef.current.on("participant left", ({ socketId }) => {
+        peersRef.current = peersRef.current.filter(
+          (p) => p.peerID !== socketId
+        );
+        setRemoteStreams((prev) => prev.filter((s) => s.peerID !== socketId));
+      });
+    }
 
     return () => {
       socketRef.current?.disconnect();
@@ -307,7 +337,8 @@ const navigate=useNavigate()
     };
   }, []);
 
-  const toggleMic = () => {
+
+const toggleMic = () => {
     const track = localStream.current?.getAudioTracks()?.[0];
     if (track) {
       track.enabled = !track.enabled;
@@ -320,6 +351,9 @@ const navigate=useNavigate()
         video: camOn,
         audio: track.enabled,
       });
+    }else{
+      toast.error("Microphone permission denied. Please allow access in your browser settings.");
+
     }
   };
 
@@ -336,9 +370,11 @@ const navigate=useNavigate()
         video: track.enabled,
         audio: micOn,
       });
+    }else{
+     toast.error("Camera permission denied. Please allow access in your browser settings.");
+
     }
   };
-
   const leaveMeeting = () => {
     socketRef.current?.disconnect();
     localStream.current?.getTracks().forEach((t) => t.stop());

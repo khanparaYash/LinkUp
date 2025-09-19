@@ -17,8 +17,8 @@ const Video = ({ stream, muted = false, label = "Participant", camOn = true, mic
   useEffect(() => {
     if (!stream || !micOn) return
     const audioContext = new AudioContext()
-    const source = audioContext.createMediaStreamSource(stream)
-    const analyser = audioContext.createAnalyser()
+    const source = audioContext?.createMediaStreamSource(stream)
+    const analyser = audioContext?.createAnalyser()
     analyser.fftSize = 512
     source.connect(analyser)
 
@@ -31,7 +31,6 @@ const Video = ({ stream, muted = false, label = "Participant", camOn = true, mic
       requestAnimationFrame(checkSpeaking)
     }
     checkSpeaking()
-
     return () => {
       audioContext.close()
     }
