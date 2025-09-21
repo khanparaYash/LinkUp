@@ -39,7 +39,8 @@ const MeetingRoom = () => {
   const displayName = localStorage.getItem("displayName") || "Guest";
 
   const hostName = res?.host?.name;
-
+  // console.log(res.host);
+  
   const joinLink = res?.joinLink;
   const userId = JSON.parse(localStorage?.getItem("user"))?.id;
 
@@ -189,7 +190,7 @@ const MeetingRoom = () => {
             const updated = prev.map((p) =>
               p.peerID === peerId ? { ...p, video, audio } : p
             );
-            console.log("🔄 Updated remoteStreams:", updated);
+            // console.log("🔄 Updated remoteStreams:", updated);
             return updated;
           });
         }
@@ -434,7 +435,7 @@ const MeetingRoom = () => {
         show={PshowInfo}
         onClose={() => setPShowInfo(false)}
         socket={socketRef.current}
-        isHost={res?.host?._id === userId}
+        isHost={res?.host?.id === userId}
         roomID={roomID}
         participants={[
           {

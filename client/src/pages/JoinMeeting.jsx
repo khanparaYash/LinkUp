@@ -39,7 +39,7 @@ function JoinMeeting() {
       }else{
         payload.guestName = JSON.parse(localStorage.getItem("user")).name||"guest"
 
-        console.log(payload);
+        // console.log(payload);
         
       }
       

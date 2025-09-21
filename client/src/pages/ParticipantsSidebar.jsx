@@ -11,7 +11,7 @@ export default function ParticipantsSidebar({
   roomID,
 }) {
   const panelRef = useRef();
-  console.log(isHost);
+  // console.log(isHost);
 
   // 🔹 Close on outside click
   useEffect(() => {

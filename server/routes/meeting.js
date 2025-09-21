@@ -29,7 +29,9 @@ router.post("/create", protect, async (req, res) => {
     
     res.status(201).json({
       meetingId: meeting.meetingId,
-      host: {name:req.user.name},
+      host: {name:req.user.name,
+        id: req.user._id,
+      },
       participants:[],
       expiresAt: meeting.expiresAt,
       joinLink:shareLink, // host can copy this
@@ -67,9 +69,7 @@ router.post("/join", optionalAuth, async (req, res) => {
     // check password
     const isMatch = await bcrypt.compare(password, meeting.password);
     if (!isMatch) return res.status(401).json({ msg: "Invalid password" });
-
     
-
     
 
     res.json({
