@@ -410,6 +410,7 @@ const MeetingRoom = () => {
     localStream.current?.getTracks().forEach((t) => t.stop());
     window.location.href = "/";
   };
+console.log(res?.host?.id +""+userId);
 
   return waitingForHost && !hostPresent ? (
     <WaitingForHost leaveMeeting={leaveMeeting} />
@@ -435,7 +436,7 @@ const MeetingRoom = () => {
         show={PshowInfo}
         onClose={() => setPShowInfo(false)}
         socket={socketRef.current}
-        isHost={res?.host?.id === userId}
+        isHost={res?.host?.id != null && userId != null && res?.host?.id == userId}
         roomID={roomID}
         participants={[
           {
