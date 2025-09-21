@@ -6,9 +6,12 @@ export default function ParticipantsSidebar({
   show,
   onClose,
   participants = [],
+  isHost,
+  socket,
+  roomID,
 }) {
-
   const panelRef = useRef();
+  console.log(isHost);
 
   // 🔹 Close on outside click
   useEffect(() => {
@@ -16,8 +19,6 @@ export default function ParticipantsSidebar({
       if (
         document.getElementById("participant-toggle-btn")?.contains(e.target)
       ) {
-        console.log(document.getElementById("participant-toggle-btn"));
-        
         return;
       }
       if (panelRef.current && !panelRef.current.contains(e.target)) {
@@ -41,7 +42,6 @@ export default function ParticipantsSidebar({
             transition={{ duration: 0.2 }}
             onClick={onClose}
             className="fixed inset-0 z-40 bg-black/60 lg:hidden"
-            
           />
 
           {/* Drawer */}
@@ -57,7 +57,7 @@ export default function ParticipantsSidebar({
               rounded-t-xl lg:rounded-none overflow-y-auto bg-black/80"
             role="dialog"
             aria-modal="true"
-            onClick={(e) => e.stopPropagation()} // prevent backdrop clicks
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="flex items-center bg-black/80 justify-between p-4 border-b">
@@ -78,7 +78,7 @@ export default function ParticipantsSidebar({
             </div>
 
             {/* List */}
-            <div className="p-3  ">
+            <div className="p-3">
               {participants.length === 0 ? (
                 <div className="text-sm text-muted-foreground p-4">
                   No participants yet
@@ -93,8 +93,8 @@ export default function ParticipantsSidebar({
                       transition={{ duration: 0.2 }}
                       className="flex items-center justify-between gap-3 p-2 rounded-md hover:bg-muted/30"
                     >
+                      {/* User Info */}
                       <div className="flex items-center gap-3">
-                        {/* avatar */}
                         <div className="w-10 h-10 flex items-center justify-center rounded-full bg-muted text-sm font-medium">
                           {p.name ? p.name.charAt(0).toUpperCase() : "U"}
                         </div>
@@ -117,8 +117,38 @@ export default function ParticipantsSidebar({
                         </div>
                       </div>
 
-                      {/* icons */}
+                      {/* Status + Host Controls */}
                       <div className="flex items-center gap-2">
+                        
+                        {/* 🔹 Host-only controls */}
+                        {isHost && !p.isYou && (
+                          <div className="flex gap-1">
+                            {p.micOn && (
+                              <button
+                                onClick={() =>
+                                  socket.emit("host-force-mute", {
+                                    roomID,
+                                    targetId: p.peerID,
+                                  })
+                                }
+                                className="px-2 py-1 text-xs bg-red-500/80 hover:bg-red-500 text-white rounded"
+                              >
+                                Mute
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                socket.emit("host-remove-user", {
+                                  roomID,
+                                  targetId: p.peerID,
+                                })
+                              }
+                              className="px-2 py-1 text-xs bg-red-600/80 hover:bg-red-600 text-white rounded"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
                         {p.camOn ? (
                           <Video className="w-4 h-4 text-green-500" />
                         ) : (
@@ -129,6 +159,7 @@ export default function ParticipantsSidebar({
                         ) : (
                           <MicOff className="w-4 h-4 text-red-500" />
                         )}
+
                       </div>
                     </motion.li>
                   ))}

@@ -9,7 +9,6 @@ import authRoutes from "./routes/auth.js";
 import meetingRoutes from "./routes/meeting.js";
 import chatRoutes from "./routes/chat.js";
 import Chat from "./models/Chat.js";
-import { log } from "console";
 
 dotenv.config();
 
@@ -33,21 +32,22 @@ const io = new Server(server, {
   cors: { origin: process.env.CLIENT_URL || "*", methods: ["GET", "POST"] },
 });
 
-// ---------------- SOCKET.IO -----------------// --- Socket.IO state ---
-const MAX_PEERS_PER_ROOM = 4;
+// ---------------- SOCKET.IO ----------------- //
+const MAX_PEERS_PER_ROOM = 20;
 
-// roomID -> Map(socketId -> { name })
+// roomID -> Map(socketId -> { name, audio, video, deviceId })
 const roomUsers = new Map();
 // socketId -> roomID
 const socketRoom = new Map();
 // socketId -> name
 const socketName = new Map();
-const roomHosts = new Map(); // roomID -> socketId
+// roomID -> hostSocketId
+const roomHosts = new Map();
 
 io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
 
-  // Client must send: { roomID, name }
+  // ---- JOIN ROOM ----
   socket.on(
     "join room",
     async ({
@@ -59,6 +59,7 @@ io.on("connection", (socket) => {
       deviceId,
     } = {}) => {
       if (!roomID) return;
+
       try {
         const meeting = await Meeting.findOne({ meetingId: roomID });
         let isHost = false;
@@ -72,26 +73,21 @@ io.on("connection", (socket) => {
 
         const usersMap = roomUsers.get(roomID) || new Map();
 
+        // Prevent duplicate device
         if (deviceId) {
           for (const [sid, meta] of usersMap.entries()) {
             if (meta.deviceId === deviceId) {
-              console.log(
-                `👀 Duplicate device detected. Kicking old socket ${sid}`
-              );
+              console.log(`👀 Duplicate device. Kicking old socket ${sid}`);
               const oldSocket = io.sockets.sockets.get(sid);
               if (oldSocket) {
                 oldSocket.leave(roomID);
-                oldSocket.emit("duplicate-kicked"); // notify frontend
+                oldSocket.emit("duplicate-kicked");
                 oldSocket.disconnect(true);
               }
               usersMap.delete(sid);
               await Meeting.findOneAndUpdate(
                 { meetingId: roomID },
-                {
-                  $pull: {
-                    participants: { deviceId },
-                  },
-                }
+                { $pull: { participants: { deviceId } } }
               );
             }
           }
@@ -102,12 +98,12 @@ io.on("connection", (socket) => {
           return;
         }
 
+        // Host check
         if (isHost) {
           roomHosts.set(roomID, socket.id);
-          io.to(roomID).emit("host-joined"); // notify everyone waiting
+          io.to(roomID).emit("host-joined");
           console.log(`👑 Host joined for room ${roomID}`);
         } else {
-          // ✅ If not host → check if host exists
           const hostId = roomHosts.get(roomID);
           if (!hostId || !io.sockets.sockets.get(hostId)) {
             socket.emit("waiting-for-host");
@@ -115,7 +111,7 @@ io.on("connection", (socket) => {
           }
         }
 
-        // save metadata
+        // Save metadata
         usersMap.set(socket.id, { name, audio, video, deviceId });
         roomUsers.set(roomID, usersMap);
         socketRoom.set(socket.id, roomID);
@@ -123,7 +119,7 @@ io.on("connection", (socket) => {
 
         socket.join(roomID);
 
-        // send existing users (except self)
+        // Send existing users (except self)
         const others = [...usersMap.entries()]
           .filter(([id]) => id !== socket.id)
           .map(([socketId, meta]) => ({
@@ -134,7 +130,7 @@ io.on("connection", (socket) => {
           }));
         socket.emit("all users", others);
 
-        // notify room (except self)
+        // Notify others
         socket.to(roomID).emit("new participant", {
           socketId: socket.id,
           name,
@@ -142,29 +138,23 @@ io.on("connection", (socket) => {
 
         console.log(`📢 ${socket.id} (${name}) joined room ${roomID}`);
 
+        // Save participant in DB
         const participantData = userId
           ? { user: userId, deviceId, joinedAt: new Date() }
           : { guestName: name, deviceId, joinedAt: new Date() };
 
-        // If logged-in user (host or normal), remove old entries by userId
         if (userId) {
           await Meeting.findOneAndUpdate(
             { meetingId: roomID },
-            {
-              $pull: { participants: { user: userId } }, // remove any existing entry for this user
-            }
+            { $pull: { participants: { user: userId } } }
           );
         } else if (deviceId) {
-          // If guest → dedupe by deviceId
           await Meeting.findOneAndUpdate(
             { meetingId: roomID },
-            {
-              $pull: { participants: { deviceId } }, // remove any existing entry for this device
-            }
+            { $pull: { participants: { deviceId } } }
           );
         }
 
-        // Now safely push new entry
         await Meeting.findOneAndUpdate(
           { meetingId: roomID },
           { $push: { participants: participantData } },
@@ -176,13 +166,14 @@ io.on("connection", (socket) => {
     }
   );
 
+  // ---- CHAT ----
   socket.on("sendMessage", async ({ meetingId, user, message }) => {
     const msg = new Chat({ meetingId, user, message });
     await msg.save();
     io.to(meetingId).emit("receiveMessage", msg);
   });
 
-  // WebRTC signaling (unchanged names added)
+  // ---- WebRTC signaling ----
   socket.on("sending signal", (payload) => {
     const { userToSignal, signal } = payload;
     const callerID = socket.id;
@@ -208,6 +199,7 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ---- Media state update ----
   socket.on("media-update", ({ meetingId, peerId, video, audio }) => {
     const usersMap = roomUsers.get(meetingId);
     if (usersMap && usersMap.has(peerId)) {
@@ -215,13 +207,48 @@ io.on("connection", (socket) => {
       meta.video = video;
       meta.audio = audio;
       usersMap.set(peerId, meta);
-      roomUsers.set(meetingId, usersMap);
     }
     socket
       .to(meetingId)
       .emit("participant-media-update", { peerId, video, audio });
   });
 
+  // ---- Host controls ----
+  socket.on("host-force-mute", ({ roomID, targetId }) => {
+    if (roomHosts.get(roomID) !== socket.id) {
+      console.log("219");
+      return;
+      console.log("222");
+    }
+    // only host
+    io.to(targetId).emit("force-mute",{targetId});
+  });
+
+  socket.on("host-remove-user", ({ roomID, targetId }) => {
+    if (roomHosts.get(roomID) !== socket.id) return;
+
+      io.to(targetId).emit("removed-by-host");
+    
+  });
+
+  socket.on("host-end-meeting", ({ roomID }) => {
+    if (roomHosts.get(roomID) !== socket.id) return;
+    io.to(roomID).emit("meeting-ended");
+    const usersMap = roomUsers.get(roomID);
+    if (usersMap) {
+      for (const sid of usersMap.keys()) {
+        const targetSocket = io.sockets.sockets.get(sid);
+        if (targetSocket) {
+          targetSocket.leave(roomID);
+          targetSocket.disconnect(true);
+        }
+      }
+    }
+    roomUsers.delete(roomID);
+    roomHosts.delete(roomID);
+  });
+
+  // ---- Leaving / disconnect ----
   socket.on("leave room", ({ meetingId, peerId }) => {
     socket.to(meetingId).emit("participant-left", peerId);
   });
@@ -234,9 +261,7 @@ io.on("connection", (socket) => {
       roomHosts.delete(roomID);
       io.to(roomID).emit("host-left");
       console.log(`👑 Host left room ${roomID}`);
-      console.log(roomHosts + "193");
     }
-    console.log(roomHosts + "196");
 
     if (roomID && roomUsers.has(roomID)) {
       const usersMap = roomUsers.get(roomID);

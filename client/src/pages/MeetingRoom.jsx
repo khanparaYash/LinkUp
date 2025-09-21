@@ -68,6 +68,34 @@ const MeetingRoom = () => {
       leaveMeeting();
     });
 
+    socketRef.current.on("force-mute", () => {
+      const track = localStream.current?.getAudioTracks()?.[0];
+      if (track) {
+        track.enabled = false;
+        setMicOn(track.enabled);
+
+        socketRef.current.emit("media-update", {
+          meetingId: roomID,
+          peerId: socketRef.current.id,
+          stream: localStream.current,
+          video: camOn,
+          audio: track.enabled,
+        });
+        toast.error(" Host mute your mic");
+      }
+      // also update UI + notify others
+    });
+
+    socketRef.current.on("removed-by-host", () => {
+      leaveMeeting();
+      toast.error(" Host removed you from the meeting");
+    });
+
+    socketRef.current.on("meeting-ended", () => {
+      toast.error("⚠️ Host ended the meeting");
+      leaveMeeting();
+    });
+
     socketRef.current.on("host-joined", () => {
       setHostPresent(true);
       setWaitingForHost(false);
@@ -337,8 +365,7 @@ const MeetingRoom = () => {
     };
   }, []);
 
-
-const toggleMic = () => {
+  const toggleMic = () => {
     const track = localStream.current?.getAudioTracks()?.[0];
     if (track) {
       track.enabled = !track.enabled;
@@ -351,9 +378,10 @@ const toggleMic = () => {
         video: camOn,
         audio: track.enabled,
       });
-    }else{
-      toast.error("Microphone permission denied. Please allow access in your browser settings.");
-
+    } else {
+      toast.error(
+        "Microphone permission denied. Please allow access in your browser settings."
+      );
     }
   };
 
@@ -370,9 +398,10 @@ const toggleMic = () => {
         video: track.enabled,
         audio: micOn,
       });
-    }else{
-     toast.error("Camera permission denied. Please allow access in your browser settings.");
-
+    } else {
+      toast.error(
+        "Camera permission denied. Please allow access in your browser settings."
+      );
     }
   };
   const leaveMeeting = () => {
@@ -404,6 +433,9 @@ const toggleMic = () => {
       <ParticipantsSidebar
         show={PshowInfo}
         onClose={() => setPShowInfo(false)}
+        socket={socketRef.current}
+        isHost={res?.host?._id === userId}
+        roomID={roomID}
         participants={[
           {
             peerID: socketRef.current?.id,

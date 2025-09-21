@@ -1,4 +1,3 @@
-// src/components/layout/Header.jsx
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "@/slices/authSlice";
