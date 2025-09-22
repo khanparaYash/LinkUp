@@ -19,8 +19,8 @@ const MeetingRoom = () => {
 
   const navigate = useNavigate();
   const [remoteStreams, setRemoteStreams] = useState([]); // [{ peerID, stream, name,video,audio }]
-  const [micOn, setMicOn] = useState(true);
-  const [camOn, setCamOn] = useState(true);
+  const [micOn, setMicOn] = useState(false);
+  const [camOn, setCamOn] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [active, setActive] = useState(true);
   const [PshowInfo, setPShowInfo] = useState(false);
@@ -114,7 +114,7 @@ const MeetingRoom = () => {
         localStream.current = stream;
         if (userVideo.current) userVideo.current.srcObject = stream;
 
-        joinRoom(true, true, stream);
+        joinRoom(camOn , micOn, stream);
       })
       .catch((err) => {
         console.warn("⚠️ User denied mic/camera:", err);
@@ -158,7 +158,7 @@ const MeetingRoom = () => {
           const peer = createPeer(socketId, socketRef.current.id, stream);
           peersRef.current.push({ peerID: socketId, peer, name });
           peer.on("stream", (remoteStream) => {
-            addRemoteStream(remoteStream, socketId, name, audio, video);
+            addRemoteStream(remoteStream, socketId, name,  video,audio);
           });
         });
       });
@@ -369,7 +369,7 @@ const MeetingRoom = () => {
   const toggleMic = () => {
     const track = localStream.current?.getAudioTracks()?.[0];
     if (track) {
-      track.enabled = !track.enabled;
+      track.enabled = !track.enabled||!micOn;
       setMicOn(track.enabled);
 
       socketRef.current.emit("media-update", {
@@ -389,7 +389,7 @@ const MeetingRoom = () => {
   const toggleCam = () => {
     const track = localStream.current?.getVideoTracks()?.[0];
     if (track) {
-      track.enabled = !track.enabled;
+      track.enabled = !track.enabled||!camOn;
       setCamOn(track.enabled);
 
       socketRef.current.emit("media-update", {
