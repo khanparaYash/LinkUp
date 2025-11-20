@@ -61,20 +61,27 @@ const InfoPanel = ({ show, onClose, roomID, hostName, joinLink }) => {
             exit={{ x: 300, opacity: 0 }}
             transition={{ duration: 0.3 }}
             ref={panelRef}
-            className="fixed top-0 right-0 h-full w-80 
-                       bg-background text-foreground 
-                       border-l border-border 
-                       shadow-xl z-50 
-                       flex flex-col rounded-l-2xl"
+            className="fixed top-0 right-0 h-full w-80 sm:w-96
+                       bg-background/95 backdrop-blur-md text-foreground 
+                       border-l border-border/50 
+                       shadow-2xl z-50 
+                       flex flex-col"
             role="dialog"
             aria-modal="true"
           >
             {/* Header */}
-            <div className="flex justify-between items-center p-4 border-b border-border">
-              <h2 className="text-base font-semibold tracking-tight">Meeting Details</h2>
+            <div className="flex justify-between items-center p-5 sm:p-6 border-b border-border/50 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">ℹ️</span>
+                </div>
+                <h2 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                  Meeting Details
+                </h2>
+              </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-muted transition-colors"
+                className="p-2 rounded-lg hover:bg-accent/50 transition-colors border border-border/50"
                 aria-label="Close details"
               >
                 <X className="w-5 h-5" />
@@ -82,30 +89,30 @@ const InfoPanel = ({ show, onClose, roomID, hostName, joinLink }) => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 p-5 space-y-4 text-sm overflow-y-auto">
-              <div>
-                <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
+            <div className="flex-1 p-5 sm:p-6 space-y-6 text-sm overflow-y-auto">
+              <div className="space-y-2 p-4 rounded-xl bg-accent/30 border border-border/50">
+                <p className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">
                   Meeting ID
                 </p>
-                <p className="font-medium">{roomID}</p>
+                <p className="font-mono font-bold text-base text-foreground break-all">{roomID}</p>
               </div>
 
-              <div>
-                <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
+              <div className="space-y-2 p-4 rounded-xl bg-accent/30 border border-border/50">
+                <p className="text-muted-foreground text-xs uppercase tracking-wide font-semibold">
                   Host
                 </p>
-                <p className="font-medium">{hostName}</p>
+                <p className="font-semibold text-base text-foreground">{hostName}</p>
               </div>
 
-              <div>
-                <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
+              <div className="space-y-2 p-4 rounded-xl bg-accent/30 border border-border/50">
+                <p className="text-muted-foreground text-xs uppercase tracking-wide font-semibold mb-2">
                   Invite Link
                 </p>
                 <a
                   href={joinLink}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-primary hover:underline break-words text-sm"
+                  className="text-primary hover:underline break-words text-sm font-medium block"
                 >
                   {joinLink}
                 </a>
@@ -113,8 +120,11 @@ const InfoPanel = ({ show, onClose, roomID, hostName, joinLink }) => {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-border">
-              <Button onClick={() => copyToClipboard(joinLink)} className="w-full">
+            <div className="p-5 sm:p-6 border-t border-border/50 bg-background/50">
+              <Button 
+                onClick={() => copyToClipboard(joinLink)} 
+                className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold"
+              >
                 <LinkIcon className="w-4 h-4 mr-2" /> Copy Invite Link
               </Button>
             </div>

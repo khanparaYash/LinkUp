@@ -25,11 +25,13 @@ export function ModeToggle() {
       variant="ghost"
       size="icon"
       onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+      className="hover:bg-accent/50 transition-colors border border-border/50 hover:border-border"
+      aria-label="Toggle theme"
     >
       {theme === "light" ? (
-        <Moon className="h-[1.2rem] w-[1.2rem]" />
+        <Moon className="h-[1.2rem] w-[1.2rem] transition-transform hover:rotate-12" />
       ) : (
-        <Sun className="h-[1.2rem] w-[1.2rem]" />
+        <Sun className="h-[1.2rem] w-[1.2rem] transition-transform hover:rotate-12" />
       )}
       <span className="sr-only">Toggle theme</span>
     </Button>

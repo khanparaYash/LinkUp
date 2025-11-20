@@ -99,63 +99,76 @@ export default function Chat({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 300, opacity: 0 }}
             transition={{ type: "tween", duration: 0.3 }}
-            className="fixed z-50 bg-background text-foreground shadow-xl
+            className="fixed z-50 bg-background/95 backdrop-blur-xl text-foreground shadow-2xl
               w-full lg:w-96 h-1/2 lg:h-full bottom-0 lg:top-0 lg:right-0
-              rounded-t-xl lg:rounded-none flex flex-col"
+              rounded-t-2xl lg:rounded-none flex flex-col border-l border-border/50"
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-5 h-5 text-primary" />
-                <h3 className="text-base font-semibold">Meeting Chat</h3>
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-border/50 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+                    Meeting Chat
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    {messages.length} {messages.length === 1 ? 'message' : 'messages'}
+                  </span>
+                </div>
               </div>
               <button
                 onClick={onClose}
                 aria-label="Close chat"
-                className="p-2 rounded hover:bg-muted/50"
+                className="p-2 rounded-lg hover:bg-accent/50 transition-colors border border-border/50"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/20">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 bg-gradient-to-b from-background to-accent/5">
               {messages.length === 0 ? (
-                <div className="text-sm text-muted-foreground text-center mt-6">
-                  No messages yet
+                <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mb-4">
+                    <MessageCircle className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No messages yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Start the conversation!</p>
                 </div>
               ) : (
                 messages.map((msg, idx) => (
-                  <div
+                  <motion.div
                     key={idx}
+                    initial={{ scale: 0.9, opacity: 0, y: 10 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: idx * 0.02 }}
                     className={`flex ${
                       msg.user.includes("(you)")
                         ? "justify-end"
                         : "justify-start"
                     }`}
                   >
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ duration: 0.2 }}
-                      className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm shadow
+                    <div
+                      className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm shadow-lg backdrop-blur-sm
                         ${
                           msg.user.includes("(you)")
-                            ? "bg-blue-600 text-white"
-                            : "bg-muted text-foreground"
+                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
+                            : "bg-accent/50 border border-border/50 text-foreground"
                         }`}
                     >
                       {!msg.user.includes("(you)") && (
-                        <p className="text-xs font-medium text-primary mb-1">
-                          {msg.user}
+                        <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1.5">
+                          {msg.user.replace("(you)", "")}
                         </p>
                       )}
-                      <p>{msg.message}</p>
-                    </motion.div>
-                  </div>
+                      <p className="leading-relaxed">{msg.message}</p>
+                    </div>
+                  </motion.div>
                 ))
               )}
               <div ref={messagesEndRef} />
@@ -164,19 +177,19 @@ export default function Chat({
             {/* Input */}
             <form
               onSubmit={sendMessage}
-              className="flex items-center gap-2 border-t border-border p-3 bg-muted/30"
+              className="flex items-center gap-2 border-t border-border/50 p-4 sm:p-5 bg-background/50 backdrop-blur-sm"
             >
               <Input
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Type a message..."
-                className="flex-1 bg-muted/40 border-border"
+                className="flex-1 bg-background/80 border-border/50 focus:border-indigo-500/50 rounded-xl h-11"
               />
               <Button
                 type="submit"
                 size="icon"
-                className="bg-blue-600 hover:bg-blue-700 rounded-full"
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl h-11 w-11 shadow-lg hover:shadow-xl transition-all"
               >
                 <Send className="h-4 w-4" />
               </Button>

@@ -410,7 +410,7 @@ const MeetingRoom = () => {
     localStream.current?.getTracks().forEach((t) => t.stop());
     window.location.href = "/";
   };
-console.log(res?.host?.id +""+userId);
+console.log(res?.host?._id +"   "+userId);
 
   return waitingForHost && !hostPresent ? (
     <WaitingForHost leaveMeeting={leaveMeeting} />
@@ -436,7 +436,7 @@ console.log(res?.host?.id +""+userId);
         show={PshowInfo}
         onClose={() => setPShowInfo(false)}
         socket={socketRef.current}
-        isHost={res?.host?.id != null && userId != null && res?.host?.id == userId}
+        isHost={res?.host?._id != null && userId != null && res?.host?._id == userId}
         roomID={roomID}
         participants={[
           {
@@ -458,23 +458,38 @@ console.log(res?.host?.id +""+userId);
 
       {/* Header */}
       <header
-        className={`absolute top-0 left-0 w-full flex justify-between items-center p-4 transition-opacity duration-300 ${
-          active ? "opacity-100" : "opacity-0 pointer-events-none"
-        } bg-background/80 backdrop-blur-md border-b z-10`}
+        className={`absolute top-0 left-0 w-full flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 transition-all duration-300 ${
+          active ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+        } bg-background/95 backdrop-blur-md border-b border-border/40 shadow-lg z-10`}
       >
-        <h1 className="text-lg font-semibold">
-          Meeting <span className="text-muted-foreground">#{roomID}</span>
-        </h1>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+            <span className="text-white text-sm font-bold">LU</span>
+          </div>
+          <h1 className="text-base sm:text-lg font-bold">
+            Meeting{" "}
+            <span className="text-muted-foreground font-mono text-sm sm:text-base">
+              #{roomID}
+            </span>
+          </h1>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setShowInfo(true)}
+            className="hover:bg-accent/50 border-border/50 transition-colors"
           >
-            <Info className="w-5 h-5" />
+            <Info className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
-          <Button variant="destructive" size="sm" onClick={leaveMeeting}>
-            <PhoneOff className="w-4 h-4 mr-2" /> Leave
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={leaveMeeting}
+            className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
+          >
+            <PhoneOff className="w-4 h-4 mr-2" /> 
+            <span className="hidden sm:inline">Leave</span>
           </Button>
         </div>
       </header>
@@ -485,9 +500,10 @@ console.log(res?.host?.id +""+userId);
           <Video
             stream={localStream.current}
             muted
-            label={displayName + "(You)"}
+            label={displayName + " (You)"}
             camOn={camOn}
             micOn={micOn}
+            isScreenShare={screenSharing}
           />
         </Card>
 

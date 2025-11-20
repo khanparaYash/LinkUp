@@ -59,65 +59,99 @@ function JoinMeeting() {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">
+    <div className="flex justify-center items-center min-h-[calc(100vh-200px)] py-8 px-4 relative">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl" />
+      </div>
+      
+      <Card className="relative w-full max-w-md shadow-2xl border-border/50 bg-card/95 backdrop-blur-md z-10">
+        <CardHeader className="space-y-2 text-center pb-4">
+          <div className="mx-auto w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mb-2">
+            <span className="text-2xl">🚀</span>
+          </div>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
             Join a Meeting
           </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Enter meeting details to join
+          </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-5">
           <form onSubmit={handleJoin} className="space-y-4">
-            <Input
-              type="text"
-              placeholder="Meeting ID"
-              value={meetingId}
-              onChange={(e) => setMeetingId(e.target.value)}
-              required
-              disabled={loading}
-            />
-
-            {/* Password with toggle */}
-            <div className="relative">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Meeting ID
+              </label>
               <Input
-                type={showPassword ? "text" : "password"}
-                placeholder="Meeting Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="text"
+                placeholder="Enter meeting ID"
+                value={meetingId}
+                onChange={(e) => setMeetingId(e.target.value)}
                 required
                 disabled={loading}
+                className="h-11 bg-background border-border/50 focus:border-primary/50 transition-colors"
               />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-3 flex items-center text-gray-500"
-                onClick={() => setShowPassword((prev) => !prev)}
-                tabIndex={-1}
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
+            </div>
+
+            {/* Password with toggle */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">
+                Meeting Password
+              </label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter meeting password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="h-11 bg-background border-border/50 focus:border-primary/50 transition-colors pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-3 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Guest Name (only if not logged in) */}
             {!isAuthenticated && (
-              <Input
-                type="text"
-                placeholder="Your Name"
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                required
-                disabled={loading}
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Your Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Enter your display name"
+                  value={guestName || ""}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="h-11 bg-background border-border/50 focus:border-primary/50 transition-colors"
+                />
+              </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full h-11 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 shadow-md hover:shadow-lg transition-all font-semibold" 
+              disabled={loading}
+            >
               {loading ? (
                 <>
                   <Loader2 className="animate-spin w-4 h-4 mr-2" />
-                  Joining...
+                  Joining Meeting...
                 </>
               ) : (
                 "Join Meeting"

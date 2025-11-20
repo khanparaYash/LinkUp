@@ -28,19 +28,30 @@ useEffect(() => {
   fetchUser();
 }, [dispatch]);
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors">
+    <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
       {/* Navbar */}
 
       <Header />
       {/* Main content */}
-      <main className="flex-1 container mx-auto p-6">
+      <main className="flex-1 container mx-auto p-6 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <Outlet />
        
       </main>
 
       {/* Footer */}
-      <footer className="border-t text-center p-4 text-sm text-muted-foreground">
-        © {new Date().getFullYear()} LinkUp. All rights reserved.
+      <footer className="border-t border-border/40 bg-background/95 backdrop-blur-xl mt-auto shadow-lg dark:shadow-slate-900/20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} <span className="font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">LinkUp</span>. All rights reserved.
+            </div>
+            <div className="flex items-center gap-6 text-sm">
+              <span className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer hover:underline">Privacy</span>
+              <span className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer hover:underline">Terms</span>
+              <span className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer hover:underline">Support</span>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );
