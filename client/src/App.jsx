@@ -33,7 +33,7 @@ useEffect(() => {
 
       <Header />
       {/* Main content */}
-      <main className="flex-1 container mx-auto p-6 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <main className="flex-1 container mx-auto sm:px-6 lg:px-8 py-6 sm:py-8">
         <Outlet />
        
       </main>
