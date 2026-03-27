@@ -77,7 +77,6 @@ io.on("connection", (socket) => {
         if (deviceId) {
           for (const [sid, meta] of usersMap.entries()) {
             if (meta.deviceId === deviceId) {
-              console.log(`👀 Duplicate device. Kicking old socket ${sid}`);
               const oldSocket = io.sockets.sockets.get(sid);
               if (oldSocket) {
                 oldSocket.leave(roomID);

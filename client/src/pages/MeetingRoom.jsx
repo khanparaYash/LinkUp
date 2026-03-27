@@ -39,8 +39,6 @@ const MeetingRoom = () => {
   const displayName = localStorage.getItem("displayName") || "Guest";
 
   const hostName = res?.host?.name;
-  // console.log(res.host);
-  
   const joinLink = res?.joinLink;
   const userId = JSON.parse(localStorage?.getItem("user"))?.id;
 
@@ -61,6 +59,7 @@ const MeetingRoom = () => {
     if (!res) {
       navigate(`/join?meetingId=${roomID}`);
     }
+    
     socketRef.current.on("waiting-for-host", () => {
       setWaitingForHost(true);
     });
@@ -269,6 +268,11 @@ const MeetingRoom = () => {
     return peer;
   }
 
+
+
+
+
+
   function isScreenShareSupported() {
     return !!navigator.mediaDevices?.getDisplayMedia;
   }
@@ -410,12 +414,12 @@ const MeetingRoom = () => {
     localStream.current?.getTracks().forEach((t) => t.stop());
     window.location.href = "/";
   };
-console.log(res?.host?._id +"   "+userId);
+  // console.log(res?.host?._id +"   "+userId);
 
   return waitingForHost && !hostPresent ? (
     <WaitingForHost leaveMeeting={leaveMeeting} />
   ) : (
-    <div className="relative flex flex-col min-h-screen bg-background">
+    <div className="relative flex flex-col min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       <InfoPanel
         show={showInfo}
         onClose={() => setShowInfo(false)}
@@ -460,25 +464,38 @@ console.log(res?.host?._id +"   "+userId);
       <header
         className={`absolute top-0 left-0 w-full flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 transition-all duration-300 ${
           active ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
-        } bg-background/95 backdrop-blur-md border-b border-border/40 shadow-lg z-10`}
+        } bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-2xl z-10`}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-            <span className="text-white text-sm font-bold">LU</span>
+          <div className="relative">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg ring-1 ring-white/10">
+              <span className="text-white text-sm font-bold">LU</span>
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-background shadow" />
           </div>
-          <h1 className="text-base sm:text-lg font-bold">
-            Meeting{" "}
-            <span className="text-muted-foreground font-mono text-sm sm:text-base">
-              #{roomID}
-            </span>
-          </h1>
+          <div className="leading-tight">
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight">
+              Meeting{" "}
+              <span className="text-muted-foreground font-mono text-sm sm:text-base font-semibold">
+                #{roomID}
+              </span>
+            </h1>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="hidden sm:inline">Connected</span>
+              {screenSharing && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 border border-indigo-500/20">
+                  Sharing screen
+                </span>
+              )}
+            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setShowInfo(true)}
-            className="hover:bg-accent/50 border-border/50 transition-colors"
+            className="hover:bg-accent/60 border-border/60 transition-all shadow-sm hover:shadow-md"
           >
             <Info className="w-4 h-4 sm:w-5 sm:h-5" />
           </Button>
@@ -486,7 +503,7 @@ console.log(res?.host?._id +"   "+userId);
             variant="destructive" 
             size="sm" 
             onClick={leaveMeeting}
-            className="bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg transition-all"
+            className="bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-xl transition-all"
           >
             <PhoneOff className="w-4 h-4 mr-2" /> 
             <span className="hidden sm:inline">Leave</span>
@@ -495,8 +512,8 @@ console.log(res?.host?._id +"   "+userId);
       </header>
 
       {/* Video Grid */}
-      <main className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-5 py-18">
-        <Card className="overflow-hidden">
+      <main className="flex-1 w-full max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 px-4 sm:px-6 lg:px-8 pt-20 pb-28">
+        <Card className="overflow-hidden bg-card/70 backdrop-blur-xl border-border/50">
           <Video
             stream={localStream.current}
             muted
@@ -508,7 +525,7 @@ console.log(res?.host?._id +"   "+userId);
         </Card>
 
         {remoteStreams.map(({ stream, peerID, name, video, audio }) => (
-          <Card key={peerID} className="overflow-hidden">
+          <Card key={peerID} className="overflow-hidden bg-card/70 backdrop-blur-xl border-border/50">
             <Video
               stream={stream}
               label={name || `User ${peerID.slice(0, 5)}`}
