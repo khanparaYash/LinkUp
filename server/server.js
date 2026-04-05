@@ -10,6 +10,9 @@ import meetingRoutes from "./routes/meeting.js";
 import chatRoutes from "./routes/chat.js";
 import Chat from "./models/Chat.js";
 
+import { spawn } from "child_process";
+import ffmpeg from "ffmpeg-static";
+
 dotenv.config();
 
 const app = express();
@@ -43,6 +46,8 @@ const socketRoom = new Map();
 const socketName = new Map();
 // roomID -> hostSocketId
 const roomHosts = new Map();
+// roomID -> ffmpeg child process
+const roomStreamers = new Map();
 
 io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
@@ -244,8 +249,79 @@ io.on("connection", (socket) => {
         }
       }
     }
+    const ffmpegProc = roomStreamers.get(roomID);
+    if (ffmpegProc) {
+      ffmpegProc.kill("SIGINT");
+      roomStreamers.delete(roomID);
+    }
     roomUsers.delete(roomID);
     roomHosts.delete(roomID);
+  });
+
+  // ---- RTMP LIVE STREAM ----
+  socket.on("start-live-stream", ({ roomID, rtmpUrl }) => {
+    if (roomHosts.get(roomID) !== socket.id) return;
+
+    if (roomStreamers.has(roomID)) {
+      roomStreamers.get(roomID).kill("SIGINT");
+    }
+
+    const ffmpegProcess = spawn(ffmpeg, [
+      "-f", "webm",
+      "-i", "-",
+      "-c:v", "libx264",
+      "-preset", "ultrafast",
+      "-tune", "zerolatency",
+      "-b:v", "2500k",
+      "-maxrate", "2500k",
+      "-bufsize", "5000k",
+      "-g", "50",
+      "-c:a", "aac",
+      "-b:a", "128k",
+      "-ar", "44100",
+      "-f", "flv",
+      rtmpUrl
+    ]);
+
+    ffmpegProcess.stdin.on('error', (e) => {
+      console.log('FFmpeg STDIN Error', e.message);
+    });
+
+    ffmpegProcess.on("close", (code) => {
+      console.log(`FFmpeg process exited with code ${code}`);
+      roomStreamers.delete(roomID);
+    });
+
+    ffmpegProcess.stderr.on("data", (data) => {
+      // Uncomment to debug ffmpeg issues
+      console.log(`ffmpeg stderr: ${data}`);
+    });
+
+    roomStreamers.set(roomID, ffmpegProcess);
+    io.to(roomID).emit("live-stream-started");
+    console.log(`📡 Broadcast started for room ${roomID}`);
+  });
+
+  socket.on("stream-data", ({ roomID, chunk }) => {
+    const ffmpegProcess = roomStreamers.get(roomID);
+    if (ffmpegProcess) {
+      try {
+        ffmpegProcess.stdin.write(chunk);
+      } catch (err) {
+        console.log("Error writing to ffmpeg stdin", err.message);
+      }
+    }
+  });
+
+  socket.on("stop-live-stream", ({ roomID }) => {
+    if (roomHosts.get(roomID) !== socket.id) return;
+    const ffmpegProcess = roomStreamers.get(roomID);
+    if (ffmpegProcess) {
+      ffmpegProcess.kill("SIGINT");
+      roomStreamers.delete(roomID);
+      io.to(roomID).emit("live-stream-stopped");
+      console.log(`⏹️ Broadcast stopped for room ${roomID}`);
+    }
   });
 
   // ---- Leaving / disconnect ----
@@ -259,6 +335,11 @@ io.on("connection", (socket) => {
 
     if (roomID && roomHosts.get(roomID) === socket.id) {
       roomHosts.delete(roomID);
+      const ffmpegProc = roomStreamers.get(roomID);
+      if (ffmpegProc) {
+        ffmpegProc.kill("SIGINT");
+        roomStreamers.delete(roomID);
+      }
       io.to(roomID).emit("host-left");
       console.log(`👑 Host left room ${roomID}`);
     }

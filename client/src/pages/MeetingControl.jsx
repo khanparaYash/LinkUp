@@ -9,11 +9,12 @@ import {
   MessageCircleMore,
   ScreenShare,
   ScreenShareOff,
+  Radio
 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 
-function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,screenSharing,toggleScreenShare,micOn,toggleMic,toggleCam,camOn,leaveMeeting}) {
+function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,screenSharing,toggleScreenShare,micOn,toggleMic,toggleCam,camOn,leaveMeeting, isHost, isLive, toggleLive}) {
   return (
     <footer
       className={`fixed bottom-0 left-0 w-full flex justify-center items-center gap-3 sm:gap-4 p-4 sm:p-5 transition-all duration-300 ${
@@ -99,6 +100,22 @@ function MeetingControl({active,setChatShow,setPShowInfo,PshowInfo,chatShow,scre
         </Button>
 
         <div className="w-px h-6 bg-border/50 mx-1" />
+
+        { (
+          <Button
+            variant={isLive ? "destructive" : "ghost"}
+            size="icon"
+            onClick={toggleLive}
+            className={`h-10 w-10 rounded-xl transition-all ${
+              isLive 
+                ? "bg-red-600 hover:bg-red-700 text-white shadow-lg animate-pulse" 
+                : "hover:bg-accent/50 text-red-500"
+            }`}
+            title="YouTube Live"
+          >
+            <Radio className="w-5 h-5" />
+          </Button>
+        )}
 
         <Button 
           variant="destructive" 
