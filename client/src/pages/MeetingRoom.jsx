@@ -12,6 +12,8 @@ import ParticipantsSidebar from "./ParticipantsSidebar";
 import Chat from "./Chat";
 import { toast } from "sonner";
 import WaitingForHost from "./WaitingForHost";
+import LiveStreamDialog from "./LiveStreamDialog";
+
 
 const MeetingRoom = () => {
   const location = useLocation();
@@ -28,6 +30,14 @@ const MeetingRoom = () => {
   const [screenSharing, setScreenSharing] = useState(false);
   const [waitingForHost, setWaitingForHost] = useState(false);
   const [hostPresent, setHostPresent] = useState(false);
+  const [showLiveDialog, setShowLiveDialog] = useState(false);
+  const [isLive, setIsLive] = useState(false);
+
+  const mediaRecorderRef = useRef(null);
+  const mixerVideoRefs = useRef([]);
+  const canvasRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const audioCtxRef = useRef(null);
 
   const socketRef = useRef();
   const userVideo = useRef();
@@ -41,12 +51,13 @@ const MeetingRoom = () => {
   const hostName = res?.host?.name;
   const joinLink = res?.joinLink;
   const userId = JSON.parse(localStorage?.getItem("user"))?.id;
+  const isHost = res?.host?._id != null && userId != null && res?.host?._id == userId;
 
   function getDeviceId() {
     let id = localStorage.getItem("deviceId");
     if (!id) {
       id = crypto.randomUUID(); // Unique per device
-      localStorage.setItem("deviceId", id);
+      localStorage.setItem("deviceId", id);      
     }
     return id;
   }
@@ -104,6 +115,10 @@ const MeetingRoom = () => {
       setHostPresent(false);
       setWaitingForHost(true);
       toast.error("Host left. You are waiting until host rejoins.");
+    });
+    
+    socketRef.current.on("live-stream-stopped", () => {
+      setIsLive(false);
     });
 
     navigator.mediaDevices
@@ -207,6 +222,10 @@ const MeetingRoom = () => {
     return () => {
       socketRef.current?.disconnect();
       localStream.current?.getTracks().forEach((t) => t.stop());
+      cancelAnimationFrame(animFrameRef.current);
+      if (mediaRecorderRef.current) {
+         mediaRecorderRef.current.stop();
+      }
     };
   }, [roomID, displayName]);
 
@@ -268,10 +287,124 @@ const MeetingRoom = () => {
     return peer;
   }
 
+  const startStream = async (rtmpKey, selectedParticipants) => {
+    if (!canvasRef.current) return;
+    try {
+      const rtmpUrl = `rtmp://a.rtmp.youtube.com/live2/${rtmpKey}`;
 
+      const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
+      const destination = audioCtx.createMediaStreamDestination();
 
+      mixerVideoRefs.current.forEach(v => { v.pause(); v.srcObject = null; });
+      mixerVideoRefs.current = [];
 
+      selectedParticipants.forEach(p => {
+        let stream;
+        if (p.isYou) {
+          stream = localStream.current;
+        } else {
+          const remoteP = remoteStreams.find(s => s.peerID === p.peerID);
+          if (remoteP) stream = remoteP.stream;
+        }
 
+        if (stream) {
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length > 0) {
+            const source = audioCtx.createMediaStreamSource(stream);
+            source.connect(destination);
+          }
+          const videoTracks = stream.getVideoTracks();
+          if (videoTracks.length > 0) {
+            const vEl = document.createElement("video");
+            vEl.srcObject = stream;
+            vEl.muted = true;
+            vEl.playsInline = true;
+            vEl.play().catch(e => console.error("Video play error:", e));
+            mixerVideoRefs.current.push(vEl);
+          }
+        }
+      });
+
+      const canvas = canvasRef.current;
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext("2d");
+
+      const drawMixer = () => {
+        ctx.fillStyle = "black";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const count = mixerVideoRefs.current.length;
+        if (count > 0) {
+          let cols = 1;
+          let rows = 1;
+          if (count === 2) { cols = 2; rows = 1; }
+          else if (count <= 4) { cols = 2; rows = 2; }
+          else if (count <= 9) { cols = 3; rows = 3; }
+          else { cols = 4; rows = 4; }
+
+          const cellW = canvas.width / cols;
+          const cellH = canvas.height / rows;
+
+          mixerVideoRefs.current.forEach((vEl, idx) => {
+            const c = idx % cols;
+            const r = Math.floor(idx / cols);
+            const x = c * cellW;
+            const y = r * cellH;
+            ctx.drawImage(vEl, x, y, cellW, cellH);
+          });
+        }
+        animFrameRef.current = requestAnimationFrame(drawMixer);
+      };
+      drawMixer();
+
+      const canvasStream = canvas.captureStream(30);
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...destination.stream.getAudioTracks()
+      ]);
+
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType: "video/webm;codecs=vp8,opus",
+        videoBitsPerSecond: 2500000 
+      });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0 && socketRef.current) {
+          socketRef.current.emit("stream-data", { roomID, chunk: e.data });
+        }
+      };
+
+      mediaRecorderRef.current = mediaRecorder;
+      socketRef.current.emit("start-live-stream", { roomID, rtmpUrl });
+      mediaRecorder.start(250);
+      
+      setIsLive(true);
+      setShowLiveDialog(false);
+      toast.success("Broadcast started");
+    } catch (error) {
+      console.error("Live streaming error", error);
+      toast.error("Failed to start broadcast. Make sure selected streams have video/audio.");
+    }
+  };
+
+  const stopStream = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current = null;
+    }
+    cancelAnimationFrame(animFrameRef.current);
+    mixerVideoRefs.current.forEach(v => { v.pause(); v.srcObject = null; });
+    mixerVideoRefs.current = [];
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(console.error);
+    }
+    
+    socketRef.current?.emit("stop-live-stream", { roomID });
+    setIsLive(false);
+    toast.info("Broadcast stopped");
+  };
 
   function isScreenShareSupported() {
     return !!navigator.mediaDevices?.getDisplayMedia;
@@ -427,6 +560,27 @@ const MeetingRoom = () => {
         hostName={hostName}
         joinLink={joinLink}
       />
+      
+      <canvas ref={canvasRef} className="hidden" />
+      <LiveStreamDialog 
+        show={showLiveDialog}
+        onClose={() => setShowLiveDialog(false)}
+        isLive={isLive}
+        startStream={startStream}
+        stopStream={stopStream}
+        participants={[
+          {
+            peerID: socketRef.current?.id,
+            name: displayName,
+            isYou: true,
+          },
+          ...remoteStreams.map((p) => ({
+            peerID: p.peerID,
+            name: p.name,
+            isYou: false,
+          })),
+        ]}
+      />
 
       <Chat
         show={chatShow}
@@ -550,6 +704,9 @@ const MeetingRoom = () => {
         toggleCam={toggleCam}
         camOn={camOn}
         leaveMeeting={leaveMeeting}
+        isHost={res?.host?._id != null && userId != null && res?.host?._id == userId}
+        isLive={isLive}
+        toggleLive={() => setShowLiveDialog(true)}
       />
     </div>
   );
