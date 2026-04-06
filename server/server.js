@@ -33,6 +33,9 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: { origin: process.env.CLIENT_URL || "*", methods: ["GET", "POST"] },
+  maxHttpBufferSize: 1e8, // VERY IMPORTANT
+  pingTimeout: 120000,
+  pingInterval: 25000
 });
 
 // ---------------- SOCKET.IO ----------------- //
@@ -310,7 +313,9 @@ io.on("connection", (socket) => {
       } catch (err) {
         console.log("Error writing to ffmpeg stdin", err.message);
       }
-    }
+    } else {
+    console.log("⚠️ FFmpeg stdin closed, skipping write");
+  }
   });
 
   socket.on("stop-live-stream", ({ roomID }) => {
