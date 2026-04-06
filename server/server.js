@@ -282,6 +282,7 @@ io.on("connection", (socket) => {
       "-c:a", "aac",
       "-b:a", "128k",
       "-ar", "44100",
+      "-threads", "1",
       "-f", "flv",
       rtmpUrl
     ]);
@@ -290,8 +291,8 @@ io.on("connection", (socket) => {
       console.log('FFmpeg STDIN Error', e.message);
     });
 
-    ffmpegProcess.on("close", (code) => {
-      console.log(`FFmpeg process exited with code ${code}`);
+    ffmpegProcess.on("close", (code, signal) => {
+      console.log(`FFmpeg process exited with code ${code} and signal ${signal}`);
       roomStreamers.delete(roomID);
     });
 
