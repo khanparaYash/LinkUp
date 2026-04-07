@@ -290,7 +290,7 @@ const MeetingRoom = () => {
   const startStream = async (rtmpKey, selectedParticipants) => {
     if (!canvasRef.current) return;
     try {
-      const rtmpUrl = `rtmp://a.rtmp.youtube.com/live2/${rtmpKey}`;
+      const rtmpUrl = "rtmp://a.rtmp.youtube.com/live2";
 
       const audioCtx = new AudioContext();
       audioCtxRef.current = audioCtx;
@@ -377,7 +377,12 @@ const MeetingRoom = () => {
       };
 
       mediaRecorderRef.current = mediaRecorder;
-      socketRef.current.emit("start-live-stream", { roomID, rtmpUrl });
+      socketRef.current.emit("start-live-stream", { 
+        roomID, 
+        rtmpUrl, 
+        streamKey: rtmpKey, 
+        settings: { bitrate: 2500000, fps: 30 } 
+      });
       mediaRecorder.start(250);
       
       setIsLive(true);

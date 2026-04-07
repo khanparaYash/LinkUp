@@ -34,8 +34,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: process.env.CLIENT_URL || "*", methods: ["GET", "POST"] },
   maxHttpBufferSize: 1e8, // VERY IMPORTANT
-  pingTimeout: 120000,
-  pingInterval: 25000
+  // pingTimeout: 120000,
+  // pingInterval: 25000
 });
 
 // ---------------- SOCKET.IO ----------------- //
@@ -262,45 +262,51 @@ io.on("connection", (socket) => {
   });
 
   // ---- RTMP LIVE STREAM ----
-  socket.on("start-live-stream", ({ roomID, rtmpUrl }) => {
+  socket.on("start-live-stream", (config) => {
+    const { roomID, rtmpUrl, streamKey, settings } = config;
     if (roomHosts.get(roomID) !== socket.id) return;
 
     if (roomStreamers.has(roomID)) {
       roomStreamers.get(roomID).kill("SIGINT");
     }
 
+    const outputUrl = streamKey ? `${rtmpUrl}/${streamKey}` : rtmpUrl;
+    const bitrate = settings?.bitrate || 1000000;
+    const fps = settings?.fps || 30;
+
     const ffmpegProcess = spawn(ffmpeg, [
-      "-f", "webm",
-      "-i", "-",
-      "-c:v", "libx264",
-      "-preset", "ultrafast",
-      "-tune", "zerolatency",
-      "-pix_fmt", "yuv420p",
-      "-r", "30",
-      "-b:v", "2500k",
-      "-maxrate", "2500k",
-      "-bufsize", "5000k",
-      "-g", "60",
-      "-c:a", "aac",
-      "-b:a", "128k",
-      "-ar", "44100",
-      "-threads", "1",
-      "-f", "flv",
-      rtmpUrl
+      '-analyzeduration', '0',
+      '-probesize', '32',
+      '-f', 'webm',
+      '-i', '-',
+      '-c:v', 'libx264',
+      '-preset', 'veryfast',
+      '-tune', 'zerolatency',
+      '-b:v', `${bitrate}`,
+      '-maxrate', `${bitrate}`,
+      '-bufsize', `${bitrate * 2}`,
+      '-pix_fmt', 'yuv420p',
+      '-g', '60',
+      '-r', `${fps}`,
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-ar', '44100',
+      '-f', 'flv',
+      '-flvflags', 'no_duration_filesize',
+      outputUrl
     ]);
 
     ffmpegProcess.stdin.on('error', (e) => {
       console.log('FFmpeg STDIN Error', e.message);
     });
 
-    ffmpegProcess.on("close", (code, signal) => {
-      console.log(`FFmpeg process exited with code ${code} and signal ${signal}`);
+    ffmpegProcess.on("exit", (code) => {
+      console.log(`FFmpeg exited with code ${code}`);
       roomStreamers.delete(roomID);
     });
 
     ffmpegProcess.stderr.on("data", (data) => {
-      // Uncomment to debug ffmpeg issues
-      console.log(`ffmpeg stderr: ${data}`);
+      console.log(`[FFmpeg]`, data.toString());
     });
 
     roomStreamers.set(roomID, ffmpegProcess);
@@ -310,21 +316,18 @@ io.on("connection", (socket) => {
 
   socket.on("stream-data", ({ roomID, chunk }) => {
     const ffmpegProcess = roomStreamers.get(roomID);
-    if (ffmpegProcess) {
-      try {
-        ffmpegProcess.stdin.write(chunk);
-      } catch (err) {
-        console.log("Error writing to ffmpeg stdin", err.message);
-      }
-    } else {
-    console.log("⚠️ FFmpeg stdin closed, skipping write");
-  }
+    if (ffmpegProcess?.stdin.writable) {
+      ffmpegProcess.stdin.write(chunk, (err) => {
+        if (err) console.error('Stream write error:', err);
+      });
+    }
   });
 
   socket.on("stop-live-stream", ({ roomID }) => {
     if (roomHosts.get(roomID) !== socket.id) return;
     const ffmpegProcess = roomStreamers.get(roomID);
     if (ffmpegProcess) {
+      ffmpegProcess.stdin.end();
       ffmpegProcess.kill("SIGINT");
       roomStreamers.delete(roomID);
       io.to(roomID).emit("live-stream-stopped");
