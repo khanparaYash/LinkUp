@@ -275,8 +275,6 @@ io.on("connection", (socket) => {
     const fps = settings?.fps || 30;
 
     const ffmpegProcess = spawn(ffmpeg, [
-      '-analyzeduration', '0',
-      '-probesize', '32',
       '-f', 'webm',
       '-i', '-',
       '-c:v', 'libx264',
@@ -300,8 +298,8 @@ io.on("connection", (socket) => {
       console.log('FFmpeg STDIN Error', e.message);
     });
 
-    ffmpegProcess.on("exit", (code) => {
-      console.log(`FFmpeg exited with code ${code}`);
+    ffmpegProcess.on("exit", (code, signal) => {
+      console.log(`FFmpeg exited with code ${code}, signal: ${signal}`);
       roomStreamers.delete(roomID);
     });
 
