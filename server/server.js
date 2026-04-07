@@ -275,6 +275,7 @@ io.on("connection", (socket) => {
     const fps = settings?.fps || 30;
 
     const ffmpegProcess = spawn(ffmpeg, [
+      '-thread_queue_size', '1024',
       '-f', 'webm',
       '-i', '-',
       '-c:v', 'libx264',

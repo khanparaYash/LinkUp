@@ -365,8 +365,13 @@ const MeetingRoom = () => {
         ...destination.stream.getAudioTracks()
       ]);
 
+      let mimeType = "video/webm;codecs=vp8,opus";
+      if (MediaRecorder.isTypeSupported("video/webm;codecs=h264,opus")) {
+        mimeType = "video/webm;codecs=h264,opus";
+      }
+      
       const mediaRecorder = new MediaRecorder(combinedStream, {
-        mimeType: "video/webm;codecs=vp8,opus",
+        mimeType: mimeType,
         videoBitsPerSecond: 2500000 
       });
 
@@ -383,7 +388,7 @@ const MeetingRoom = () => {
         streamKey: rtmpKey, 
         settings: { bitrate: 2500000, fps: 30 } 
       });
-      mediaRecorder.start(250);
+      mediaRecorder.start(1000);
       
       setIsLive(true);
       setShowLiveDialog(false);
