@@ -60,7 +60,7 @@ const __dirname = path.dirname(__filename);
 
 // FFmpeg path
 
-const ffmpegPath = path.join(__dirname, "../ffmpeg/ffmpeg");
+const ffmpegPath = path.join(__dirname, "./ffmpeg/ffmpeg");
 io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
 
