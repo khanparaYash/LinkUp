@@ -284,24 +284,27 @@ io.on("connection", (socket) => {
     const fps = settings?.fps || 30;
 
     const ffmpegProcess = spawn(ffmpegPath, [
-       "-thread_queue_size", "1024",
-  "-fflags", "+genpts",
+       "-loglevel", "error",
+  "-fflags", "+genpts+discardcorrupt",
+  "-err_detect", "ignore_err",
+
   "-f", "webm",
   "-i", "-",
 
   "-c:v", "libx264",
   "-preset", "ultrafast",
-"-b:v", "700k",
-"-maxrate", "700k",
-"-bufsize", "1400k",
-"-r", "10",
+  "-tune", "zerolatency",
+
+  "-b:v", "500k",
+  "-maxrate", "500k",
+  "-bufsize", "1000k",
+
   "-pix_fmt", "yuv420p",
-  "-g", "50",
-  "-err_detect", "ignore_err",
+  "-g", "20",
+  "-r", "8",
 
   "-c:a", "aac",
-  "-b:a", "96k",
-  "-ar", "44100",
+  "-b:a", "64k",
 
   "-f", "flv",
       outputUrl

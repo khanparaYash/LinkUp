@@ -123,9 +123,11 @@ const MeetingRoom = () => {
 
     navigator.mediaDevices
       .getUserMedia({ 
-        video: { width: 426,
-  height: 240,
-  frameRate: 10}, 
+        video: {
+          width: 320,
+          height: 240,
+          frameRate: 8
+        },
         audio: true 
       })
       .then((stream) => {
@@ -332,8 +334,8 @@ const MeetingRoom = () => {
       });
 
       const canvas = canvasRef.current;
-      canvas.width = 1280;
-      canvas.height = 720;
+      canvas.width = 320;
+      canvas.height = 240;
       const ctx = canvas.getContext("2d");
 
       const drawMixer = () => {
@@ -364,7 +366,7 @@ const MeetingRoom = () => {
       };
       drawMixer();
 
-      const canvasStream = canvas.captureStream(30);
+      const canvasStream = canvas.captureStream(8);
       const combinedStream = new MediaStream([
         ...canvasStream.getVideoTracks(),
         ...destination.stream.getAudioTracks()
@@ -401,9 +403,9 @@ const MeetingRoom = () => {
         roomID, 
         rtmpUrl, 
         streamKey: rtmpKey, 
-        settings: { bitrate: 2500000, fps: 30 } 
+        settings: { bitrate: 500000, fps: 8 } 
       });
-      mediaRecorder.start(1500);
+      mediaRecorder.start(4000);
       
       setIsLive(true);
       setShowLiveDialog(false);
@@ -484,7 +486,11 @@ const MeetingRoom = () => {
     } else {
       // Switch back to camera
       const camStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 360, frameRate: 20 },
+        video: {
+          width: 320,
+          height: 240,
+          frameRate: 8
+        },
         audio: micOn,
       });
 
