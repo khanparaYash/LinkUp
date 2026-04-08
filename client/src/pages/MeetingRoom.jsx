@@ -123,7 +123,9 @@ const MeetingRoom = () => {
 
     navigator.mediaDevices
       .getUserMedia({ 
-        video: { width: 640, height: 360, frameRate: 20 }, 
+        video: { width: 426,
+  height: 240,
+  frameRate: 10}, 
         audio: true 
       })
       .then((stream) => {
@@ -368,14 +370,24 @@ const MeetingRoom = () => {
         ...destination.stream.getAudioTracks()
       ]);
 
-      let mimeType = "video/webm;codecs=vp8,opus";
-      if (MediaRecorder.isTypeSupported("video/webm;codecs=h264,opus")) {
-        mimeType = "video/webm;codecs=h264,opus";
-      }
+      const getSupportedMimeType = () => {
+    const types = [
+      'video/webm;codecs=h264,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp9,opus',
+      'video/webm'
+    ];
+    return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+  };
+      const mimeType = getSupportedMimeType();
+          if (!mimeType) {
+            throw new Error('No supported video codec found');
+          }
       
       const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType: mimeType,
-        videoBitsPerSecond: 2500000 
+        videoBitsPerSecond: 3000000,
+        
       });
 
       mediaRecorder.ondataavailable = (e) => {
@@ -391,7 +403,7 @@ const MeetingRoom = () => {
         streamKey: rtmpKey, 
         settings: { bitrate: 2500000, fps: 30 } 
       });
-      mediaRecorder.start(1000);
+      mediaRecorder.start(1500);
       
       setIsLive(true);
       setShowLiveDialog(false);

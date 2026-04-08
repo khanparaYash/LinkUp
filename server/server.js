@@ -291,15 +291,13 @@ io.on("connection", (socket) => {
 
   "-c:v", "libx264",
   "-preset", "ultrafast",
-  "-tune", "zerolatency",
-
-  "-b:v", "1500k",
-  "-maxrate", "1500k",
-  "-bufsize", "3000k",
-
+"-b:v", "700k",
+"-maxrate", "700k",
+"-bufsize", "1400k",
+"-r", "10",
   "-pix_fmt", "yuv420p",
   "-g", "50",
-  "-r", "25",
+  "-err_detect", "ignore_err",
 
   "-c:a", "aac",
   "-b:a", "96k",
