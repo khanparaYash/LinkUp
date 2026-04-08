@@ -388,7 +388,7 @@ const MeetingRoom = () => {
       
       const mediaRecorder = new MediaRecorder(combinedStream, {
         mimeType: mimeType,
-        videoBitsPerSecond: 3000000,
+        videoBitsPerSecond: 400000,
         
       });
 
@@ -405,7 +405,7 @@ const MeetingRoom = () => {
         streamKey: rtmpKey, 
         settings: { bitrate: 500000, fps: 8 } 
       });
-      mediaRecorder.start(4000);
+      mediaRecorder.start(2000);
       
       setIsLive(true);
       setShowLiveDialog(false);

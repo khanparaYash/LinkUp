@@ -261,9 +261,9 @@ io.on("connection", (socket) => {
         }
       }
     }
-    const ffmpegProc = roomStreamers.get(roomID);
-    if (ffmpegProc) {
-      ffmpegProc.kill("SIGINT");
+    const streamer = roomStreamers.get(roomID);
+    if (streamer) {
+      streamer.ffmpeg.kill("SIGINT");
       roomStreamers.delete(roomID);
     }
     roomUsers.delete(roomID);
@@ -276,7 +276,7 @@ io.on("connection", (socket) => {
     if (roomHosts.get(roomID) !== socket.id) return;
 
     if (roomStreamers.has(roomID)) {
-      roomStreamers.get(roomID).kill("SIGINT");
+      roomStreamers.get(roomID).ffmpeg.kill("SIGINT");
     }
 
     const outputUrl = streamKey ? `${rtmpUrl}/${streamKey}` : rtmpUrl;
@@ -325,26 +325,48 @@ ffmpegProcess.on("close", (code, signal) => {
       console.log(`[FFmpeg]`, data.toString());
     });
 
-    roomStreamers.set(roomID, ffmpegProcess);
+    roomStreamers.set(roomID, {
+      ffmpeg: ffmpegProcess,
+      queue: [],
+      writing: false,
+      processQueue() {
+        if (this.writing || this.queue.length === 0) return;
+        this.writing = true;
+        const chunk = this.queue.shift();
+        try {
+          if (this.ffmpeg.stdin.writable) {
+            this.ffmpeg.stdin.write(chunk, (err) => {
+              if (err) console.error("FFmpeg write error", err);
+              this.writing = false;
+              this.processQueue();
+            });
+          } else {
+            this.writing = false;
+          }
+        } catch (e) {
+           console.error("FFmpeg write sync error", e);
+           this.writing = false;
+        }
+      }
+    });
     io.to(roomID).emit("live-stream-started");
     console.log(`📡 Broadcast started for room ${roomID}`);
   });
 
   socket.on("stream-data", ({ roomID, chunk }) => {
-    const ffmpegProcess = roomStreamers.get(roomID);
-    if (ffmpegProcess?.stdin.writable) {
-      ffmpegProcess.stdin.write(chunk, (err) => {
-        if (err) console.error('Stream write error:', err);
-      });
+    const streamer = roomStreamers.get(roomID);
+    if (streamer) {
+      streamer.queue.push(chunk);
+      streamer.processQueue();
     }
   });
 
   socket.on("stop-live-stream", ({ roomID }) => {
     if (roomHosts.get(roomID) !== socket.id) return;
-    const ffmpegProcess = roomStreamers.get(roomID);
-    if (ffmpegProcess) {
-      ffmpegProcess.stdin.end();
-      ffmpegProcess.kill("SIGINT");
+    const streamer = roomStreamers.get(roomID);
+    if (streamer) {
+      streamer.ffmpeg.stdin.end();
+      streamer.ffmpeg.kill("SIGINT");
       roomStreamers.delete(roomID);
       io.to(roomID).emit("live-stream-stopped");
       console.log(`⏹️ Broadcast stopped for room ${roomID}`);
@@ -362,9 +384,9 @@ ffmpegProcess.on("close", (code, signal) => {
 
     if (roomID && roomHosts.get(roomID) === socket.id) {
       roomHosts.delete(roomID);
-      const ffmpegProc = roomStreamers.get(roomID);
-      if (ffmpegProc) {
-        ffmpegProc.kill("SIGINT");
+      const streamer = roomStreamers.get(roomID);
+      if (streamer) {
+        streamer.ffmpeg.kill("SIGINT");
         roomStreamers.delete(roomID);
       }
       io.to(roomID).emit("host-left");
