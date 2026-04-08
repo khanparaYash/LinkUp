@@ -295,6 +295,10 @@ const MeetingRoom = () => {
   }
 
   const startStream = async (rtmpKey, selectedParticipants) => {
+    toast.warning("This feature is currently under development and is not available to use right now.");
+    setShowLiveDialog(false);
+    return;
+
     if (!canvasRef.current) return;
     try {
       const rtmpUrl = "rtmp://a.rtmp.youtube.com/live2";
