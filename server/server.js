@@ -51,7 +51,16 @@ const socketName = new Map();
 const roomHosts = new Map();
 // roomID -> ffmpeg child process
 const roomStreamers = new Map();
+import path from "path";
+import { fileURLToPath } from "url";
 
+// Fix __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// FFmpeg path
+
+const ffmpegPath = path.join(__dirname, "../ffmpeg/ffmpeg");
 io.on("connection", (socket) => {
   console.log("⚡ New socket:", socket.id);
 
@@ -274,7 +283,7 @@ io.on("connection", (socket) => {
     const bitrate = settings?.bitrate || 1000000;
     const fps = settings?.fps || 30;
 
-    const ffmpegProcess = spawn(ffmpeg, [
+    const ffmpegProcess = spawn(ffmpegPath, [
       '-thread_queue_size', '1024',
       '-f', 'webm',
       '-i', '-',
