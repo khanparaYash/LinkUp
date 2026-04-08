@@ -284,23 +284,28 @@ io.on("connection", (socket) => {
     const fps = settings?.fps || 30;
 
     const ffmpegProcess = spawn(ffmpegPath, [
-      '-thread_queue_size', '1024',
-      '-f', 'webm',
-      '-i', '-',
-      '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-tune', 'zerolatency',
-      '-b:v', `${bitrate}`,
-      '-maxrate', `${bitrate}`,
-      '-bufsize', `${bitrate * 2}`,
-      '-pix_fmt', 'yuv420p',
-      '-g', '60',
-      '-r', `${fps}`,
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      '-ar', '44100',
-      '-f', 'flv',
-      '-flvflags', 'no_duration_filesize',
+       "-thread_queue_size", "1024",
+  "-fflags", "+genpts",
+  "-f", "webm",
+  "-i", "-",
+
+  "-c:v", "libx264",
+  "-preset", "ultrafast",
+  "-tune", "zerolatency",
+
+  "-b:v", "1500k",
+  "-maxrate", "1500k",
+  "-bufsize", "3000k",
+
+  "-pix_fmt", "yuv420p",
+  "-g", "50",
+  "-r", "25",
+
+  "-c:a", "aac",
+  "-b:a", "96k",
+  "-ar", "44100",
+
+  "-f", "flv",
       outputUrl
     ]);
 
@@ -312,7 +317,9 @@ io.on("connection", (socket) => {
       console.log(`FFmpeg exited with code ${code}, signal: ${signal}`);
       roomStreamers.delete(roomID);
     });
-
+ffmpegProcess.on("close", (code, signal) => {
+  console.log("FFmpeg closed:", code, signal);
+});
     ffmpegProcess.stderr.on("data", (data) => {
       console.log(`[FFmpeg]`, data.toString());
     });

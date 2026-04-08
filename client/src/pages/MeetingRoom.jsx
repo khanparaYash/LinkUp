@@ -122,7 +122,10 @@ const MeetingRoom = () => {
     });
 
     navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
+      .getUserMedia({ 
+        video: { width: 640, height: 360, frameRate: 20 }, 
+        audio: true 
+      })
       .then((stream) => {
         // ✅ User allowed permissions
         localStream.current = stream;
@@ -469,7 +472,7 @@ const MeetingRoom = () => {
     } else {
       // Switch back to camera
       const camStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: { width: 640, height: 360, frameRate: 20 },
         audio: micOn,
       });
 
