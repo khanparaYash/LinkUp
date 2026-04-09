@@ -2,13 +2,14 @@
 <div align="center">
   <h1 align="center">LinkUp 🎥</h1>
   <p align="center">
-    A Full-Stack MERN Video Conferencing Application with WebRTC & Socket.io
+    A Full-Stack MERN Video Conferencing & Live Streaming Application
     <br />
     <br />
     <a href="#1-project-overview">Overview</a> ·
     <a href="#2-features">Features</a> ·
-    <a href="#13-installation-guide">Installation</a> ·
-    <a href="#11-api-endpoints">API Docs</a>
+    <a href="#3-core-working-flows">Workflows</a> ·
+    <a href="#4-installation-guide">Installation</a> ·
+    <a href="#5-api-socket-reference">API Docs</a>
   </p>
 </div>
 
@@ -16,193 +17,75 @@
 
 ## 1. Project Overview
 
-**LinkUp** is a powerful, full-stack video conferencing application designed to bring people together seamlessly. Built on the MERN stack (MongoDB, Express.js, React, Node.js) and powered by **WebRTC** and **Socket.io**, LinkUp provides high-quality, real-time peer-to-peer audio and video communication with minimal latency. It solves the problem of remote communication by offering built-in chat, strict host controls, and secure authentication, ensuring safe and manageable digital meetings for personal and professional use.
+**LinkUp** is a powerful, full-stack video conferencing application designed for low-latency, peer-to-peer audio and video communication. Built on the **MERN stack** (MongoDB, Express.js, React, Node.js) and powered by **WebRTC**, **Socket.io**, and **FFmpeg**, LinkUp allows users to host robust video meetings from the browser. 
+
+Recently infused with RTMP capabilities, LinkUp now supports **live broadcasting directly to YouTube**, compositing multiple peers' video and audio on the fly directly from the client's browser, and forwarding it via server-side FFmpeg processing.
 
 ## 2. Features
 
-- **Real-Time Video & Audio Calling**: Low-latency communication established via WebRTC.
-- **Persistent Text Chat**: In-meeting group chat functionality.
-- **Secure Authentication**: JWT-based user registration, login, and protected routes.
-- **Meeting Management**: Create instant meetings, join via meeting IDs, and track meeting histories.
-- **Comprehensive Host Controls**: 
-  - Restrict access with a "Waiting for Host" lobby.
-  - Force mute specific participants.
-  - Remove/kick users from the active room.
-  - End the meeting for all participants.
-- **Interactive UI**: Fluid animations, dark/light theme support, and responsive design.
+- **Real-Time Video & Audio Calling**: Low-latency mesh P2P network established via WebRTC.
+- **YouTube Live Streaming Integration**: Server-side RTMP broadcasting directly to YouTube using client-side grid mixing and media recording.
+- **Screen Sharing**: Effortlessly share browser tabs, windows, or entire screens during meetings.
+- **Comprehensive Host Controls**: Waiting room, force mute, participant kick, and absolute meeting termination.
+- **Persistent Text Chat**: In-meeting group chat functionality saved in the database.
+- **Secure Authentication**: JWT-based user registration, login, and secured APIs.
+- **Interactive UI**: Fluid animations, dark/light theme support, and responsive shadcn UI design.
 
 ---
 
-## 3. Tech Stack
+## 3. Core Working Flows
 
-### **Frontend**
-- **React 19**: Modern UI component library.
-- **Vite**: Blazing fast frontend build tool.
-- **Tailwind CSS 4**: Utility-first styling framework.
-- **Redux Toolkit**: Centralized application state management.
-- **Shadcn UI & Radix UI**: Accessible, premium pre-built components.
-- **Framer Motion**: Complex interactive UI animations.
-- **Socket.io-client**: Bi-directional event communication.
-- **Simple-Peer**: Abstraction over WebRTC for peer-to-peer data and media streaming.
+LinkUp's architecture is event-driven and decoupled, separating pure API logic from intensive Real-Time functionalities. The core workflows that make up the system include:
 
-### **Backend**
-- **Node.js & Express.js**: High-performance backend routing and logic.
-- **MongoDB & Mongoose**: NoSQL database and Object Data Modeling (ODM).
-- **Socket.io**: Real-time WebSocket server.
-- **JWT (JSON Web Tokens)**: Secure HTTP authentication.
-- **Bcrypt.js**: Cryptographic password hashing.
+### 3.1 Authentication & Security Flow
+1. **Registration & Passwords**: Users sign up; passwords are cryptographically hashed using `bcryptjs` before hitting MongoDB.
+2. **Login & Token Issuance**: Successfully verified credentials return a signed **JWT (JSON Web Token)** payload.
+3. **Protected Routes**: Custom Express middleware intercepts protected API calls (like meeting creation). If valid, user context is attached; if invalid, it rejects with a 401.
 
----
+### 3.2 Meeting Management & Pre-Join Flow
+1. **Creation**: An authenticated user creates a room via REST (`/api/meetings/create`), making them the official host.
+2. **Joining & Device validation**: When a user clicks join, their device generates a unique UUID (DeviceID). The socket connection checks for redundant DeviceIDs in the same room. If detected, the older socket is kicked to prevent echoes and double participations.
+3. **Waiting Room Lobby**: If a participant joins before the host, the server places them in a "Waiting for Host" state by emitting `waiting-for-host`. They are granted entry upon the host emitting `host-joined`.
 
-## 4. Architecture
+### 3.3 WebRTC Signaling & P2P Media Flow
+To establish video calls without routing media through a central server, strict WebRTC signaling occurs:
+1. **Local Capture**: Client invokes `navigator.mediaDevices.getUserMedia` for mic/cam access.
+2. **Room Registration**: Client emits `join room` to the Socket.io Node server.
+3. **Participant Discovery**: The server responds with `all users`, a list of everyone currently active.
+4. **Peer Connection Initiation**: The client loops through participants, creating an **initiator** `simple-peer` instance for each, generating an SDP Offer.
+5. **Signaling Exchange**: 
+   - Initiator emits `sending signal` to the server.
+   - Server routes offering to target via `user joined`.
+   - Target responds, generating an SDP Answer and emitting `returning signal`.
+   - Server routes the answer back to the initiator via `receiving returned signal`.
+6. **Direct Connection**: The SDPs are resolved, NATs are traversed via ICE, and the P2P pipeline opens. The `stream` event brings the `<video>` elements to life.
 
-LinkUp employs a decoupled client-server architecture focusing on high-speed real-time data delivery:
+### 3.4 YouTube Live Streaming (RTMP) Flow
+LinkUp features a state-of-the-art live broadcasting engine to push meetings to YouTube:
+1. **Canvas & Audio Mixing (Grid Compositor)**: The host selects peers. A hidden HTML5 `<canvas>` calculates a dynamic layout grid and draws the incoming `<video>` streams in real-time. The Web Audio API simultaneously connects their audio tracks to a single `MediaStreamDestination`.
+2. **Chunking**: A `MediaRecorder` takes this composited WebM MediaStream and chunks it continuously on a 2000ms interval.
+3. **WebSocket Transmission**: Binary chunks are immediately emitted to the Node server via the `stream-data` socket event.
+4. **Server FFmpeg Transcoding**: The backend spawns an `ffmpeg` child process connected via standard input (`stdin`). It ingests the WebM array buffers, transcodes video to `libx264` and audio to `aac` to meet YouTube requirements.
+5. **RTMP Push**: FFmpeg natively pushes the FLV transcoded stream to the specified YouTube RTMP Ingest URL using the Host's Stream Key.
 
-- **React Frontend**: Handles all user interactions, video rendering, and state via Redux. It captures local media streams (camera/mic) and renders remote streams.
-- **Express Backend**: Exposes basic REST APIs for User management and Meeting records, returning JSON responses.
-- **MongoDB Database**: Stores persistent data: User profiles, Meeting logs, and Chat History.
-- **Socket.io Signaling**: Acts as the signaling server. It only transmits connection negotiation data (SDP and ICE candidates) and room state data (who is in which room, who muted).
-- **WebRTC (Peer-to-Peer)**: Once signaling is complete, WebRTC establishes direct routes between clients. Audio, video, and large data streams travel directly from browser to browser, bypassing the server entirely to ensure zero lag and high privacy.
+### 3.5 Screen Sharing Flow
+1. **Capture**: Client requests `navigator.mediaDevices.getDisplayMedia`.
+2. **Track Replacement**: Instead of renegotiating the entire SDP pipeline, LinkUp iterates through all active `peerConnection` senders and dynamically swaps the user’s camera video track with the newly acquired screen video track.
+3. **Termination**: Upon stopping, the system retrieves the standard `getUserMedia` camera feed and swaps the tracks back.
 
----
-
-## 5. WebRTC Flow
-
-The establishment of video calls follows a strict signaling process:
-
-1. **Local Media Capture**: Client requests access to microphone and camera via `navigator.mediaDevices.getUserMedia`.
-2. **Room Entry**: Client emits a `join room` event to the server.
-3. **Fetching Peers**: Server responds with an `all users` event containing socket IDs of everyone currently in the room.
-4. **Initiating Connections**: The new user loops over existing users and creates an **initiator** `Peer` (via `simple-peer`) for each. 
-5. **Sending Signals**: The initiator generates a WebRTC offer (SDP signal) and emits it to the server via `sending signal`.
-6. **Receiving & Answering**: The server relays `user joined` to existing clients, who then generate an **answering** `Peer` and emit their response via `returning signal`.
-7. **Connection Established**: The new user processes the `receiving returned signal`. The peer-to-peer data channel is completed, and `stream` events fire locally to render video `<video>` tags.
-
----
-
-## 6. Real-Time Communication
-
-Socket.io manages essential non-media functionality:
-- **Meeting Rooms**: By calling `socket.join(roomID)`, Socket.io logically groups users. Any emit to that room only touches the relevant participants.
-- **Signaling**: Passing SDP tokens and ICE candidates reliably to bypass NATs/Firewalls.
-- **Chat**: Real-time broadcast of messages without needing to poll a backend database. `sendMessage` events are bounced immediately to the room via `receiveMessage`.
-- **Participant Updates**: As users toggle their camera or microphone, `media-update` events notify the room to update UI icons instantly.
+### 3.6 Host Control Flow
+Hosts have elevated privileges validated securely on the socket server:
+- **Muta/Kick**: Emitting `host-force-mute` or `host-remove-user` with a target ID. The server verifies if the requester's socket ID matches the room's host mapping. If so, instructions are pushed exclusively to the targeted client to drop tracks or redirect home.
+- **End Meeting**: `host-end-meeting` shuts down the RTMP ffmpeg processes, severs all socket connections mapping to the room, and flushes the data footprint from node's memory map.
 
 ---
 
-## 7. Authentication System
-
-Security is managed via **JWT Authentication**:
-- **Registration**: User passwords are salted and hashed via `bcryptjs` before entering the MongoDB.
-- **Login**: Upon identity verification, the server issues a signed JWT containing the user's ID payload.
-- **Protected Routes**: A custom Express middleware (`protect`) intercepts requests to secure endpoints (e.g., getting user profile, creating a meeting). It decodes the JWT to ensure authenticity. The frontend uses React Router to protect private views (e.g., Dashboard).
-
----
-
-## 8. Meeting Management
-
-- **Creation**: Authenticated users can hit `/api/meetings/create` to generate a unique meeting instance in the database, setting themselves as the "host".
-- **Joining**: Anyone with a Meeting ID can attempt to join. The client validates the ID against the backend.
-- **Lobby Phase**: If the host is not present in the room, participants are placed in a waiting state (`waiting-for-host` socket event).
-
----
-
-## 9. Host Controls
-
-Hosts maintain absolute control over their created meeting rooms via specialized Socket events verified against the host's active Socket ID:
-- **Muting**: `host-force-mute` triggers the targeted participant's client to disable local audio tracks.
-- **Removing Users**: `host-remove-user` kicks the offender out of the WebRTC mesh and redirects them to the home page.
-- **Ending Meeting**: `host-end-meeting` completely dismantles the room. All active connections are severed, everyone is redirected, and the room record on the Node memory map is wiped.
-
----
-
-## 10. Project Folder Structure
-
-```
-LinkUp
-├── client/
-│   ├── src/
-│   │   ├── api/          # Axios interceptors and API service calls
-│   │   ├── assets/       # Static files (images, SVGs)
-│   │   ├── common/       # Shared utility styles/configs
-│   │   ├── components/   # Reusable UI components (Buttons, Modals, etc)
-│   │   ├── layouts/      # High-level wrapper components
-│   │   ├── lib/          # Helper libraries (e.g., Shadcn utilities)
-│   │   ├── pages/        # Main route views (Home, Login, MeetingRoom)
-│   │   ├── router/       # React Router DOM configurations
-│   │   ├── slices/       # Redux Toolkit state slices
-│   │   └── store/        # Redux Store configuration
-│   └── package.json
-│
-└── server/
-    ├── middlewere/       # Express middlewares (Auth protect)
-    ├── models/           # Mongoose Database Schemas (User, Meeting, Chat)
-    ├── routes/           # Express REST API endpoint definitions
-    ├── server.js         # Entry point, Express App, and Socket.io controller
-    ├── vercel.json       # Deployment configuration
-    └── package.json
-```
-
----
-
-## 11. API Endpoints
-
-### Auth Routes (`/api/auth`)
-| Method | Endpoint | Description | Auth Required |
-| --- | --- | --- | --- |
-| `POST` | `/register` | Create a new user account | No |
-| `POST` | `/login` | Authenticate user and receive JWT | No |
-| `GET` | `/me` | Get currently logged-in user profile | Yes |
-
-### Meeting Routes (`/api/meetings`)
-| Method | Endpoint | Description | Auth Required |
-| --- | --- | --- | --- |
-| `POST` | `/create` | Generate a new meeting room | Yes |
-| `POST` | `/join` | Validate a meeting link | Optional |
-| `POST` | `/end` | Log the meeting as terminated | Yes |
-| `POST` | `/leave` | Process a participant leaving | No |
-| `GET` | `/:id` | Fetch specific meeting details | No |
-
-### Chat Routes (`/api/chat`)
-| Method | Endpoint | Description | Auth Required |
-| --- | --- | --- | --- |
-| `POST` | `/history` | Fetch persistent chat logs for a room | No |
-
----
-
-## 12. Socket Events
-
-### **Client emits to Server**
-- `join room` : User initiates entry into a meeting.
-- `sending signal` : Sends WebRTC offer to another specific peer.
-- `returning signal` : Sends WebRTC answer back to the offerer.
-- `sendMessage` : Broadcasts text chat to the room.
-- `media-update` : Announces mute/unmute or cam on/off state.
-- `host-force-mute` : Host commands another user to mute.
-- `host-remove-user` : Host commands a user disconnect.
-- `host-end-meeting` : Host dismantles the room.
-- `leave room` / `disconnect` : Cleans up peer references.
-
-### **Server emits to Client**
-- `room full` : Rejects user if room is fully occupied.
-- `host-joined` : Notifies waiting users that the host arrived.
-- `waiting-for-host` : Instructs user to wait in lobby.
-- `all users` : Passes all current occupant IDs to the new user.
-- `new participant` : Alerts the room of an arrival.
-- `user joined` : Relays WebRTC offer to the specific target.
-- `receiving returned signal` : Relays WebRTC answer back to the initiator.
-- `receiveMessage` : Pushes a new chat payload to everyone.
-- `force-mute` : Specifically forces matched client to drop audio tier.
-- `removed-by-host` : Forces targeted client to tear down and navigate away.
-- `meeting-ended` : Forces everyone to tear down and navigate away.
-
----
-
-## 13. Installation Guide
+## 4. Installation Guide
 
 ### Prerequisites
 - Node.js (v18+ recommended)
 - MongoDB Database (Local or MongoDB Atlas)
+- FFmpeg installed locally (Required for the backend)
 
 ### 1. Clone the repository
 ```bash
@@ -222,10 +105,7 @@ cd ../client
 npm install
 ```
 
----
-
-## 14. Environment Variables
-
+### Environment Variables
 Create `.env` files in both the client and server directories:
 
 **`/server/.env`**
@@ -239,23 +119,19 @@ CLIENT_URL=http://localhost:5173
 
 **`/client/.env`** *(Vite syntax)*
 ```env
-VITE_BACKEND_URL=http://localhost:5000
+VITE_BACKEND=http://localhost:5000
 ```
 
----
+### Running the Application
 
-## 15. Running the Application
-
-For a fluid development experience, run the frontend and backend concurrently.
-
-**Run Backend (Terminal 1)**
+**Terminal 1 (Backend Server)**
 ```bash
 cd server
 npm run dev
 # Server running on http://localhost:5000
 ```
 
-**Run Frontend (Terminal 2)**
+**Terminal 2 (React Frontend)**
 ```bash
 cd client
 npm run dev
@@ -264,56 +140,62 @@ npm run dev
 
 ---
 
-## 16. Deployment
+## 5. API & Socket Reference
 
-- **Backend (Render / Railway / Vercel)**: 
-  You can deploy the server seamlessly using Vercel (using the included `vercel.json`) or platforms like Render. Make sure to define `CLIENT_URL` correctly in production to avoid CORS errors.
-  
-- **Frontend (Vercel / Netlify)**:
-  Connect your GitHub repo to Vercel, assign the build command `npm run build` and output directory `dist`. Remember to embed your deployed backend URL into `VITE_BACKEND_URL`.
+### REST Endpoints
+| Context | Method | Endpoint | Description |
+| --- | --- | --- | --- |
+| **Auth** | `POST` | `/api/auth/register` | Create a new user account |
+| **Auth** | `POST` | `/api/auth/login` | Authenticate user and receive JWT |
+| **Auth** | `GET` | `/api/auth/me` | Get currently logged-in user profile (Protected) |
+| **Meeting** | `POST` | `/api/meetings/create` | Generate a new meeting room (Protected) |
+| **Meeting** | `GET` | `/api/meetings/:id` | Fetch specific meeting details |
+| **Chat** | `POST` | `/api/chat/history` | Fetch persistent chat logs for a room |
 
----
-
-## 17. Screenshots Section
-
-*(Replace placeholders with actual project screenshots)*
-
-| Home Page | Meeting Room |
-| :---: | :---: |
-| ![Home Page](https://via.placeholder.com/400x250?text=Home+Dashboard) | ![Meeting Room](https://via.placeholder.com/400x250?text=Active+Video+Call) |
-
-| Waiting For Host | Host Controls |
-| :---: | :---: |
-| ![Waiting For Host](https://via.placeholder.com/400x250?text=Lobby+View) | ![Host Controls](https://via.placeholder.com/400x250?text=Mute/Kick+Actions) |
+### Socket.io Events
+- **Connections & Rooms**: `join room`, `leave room`, `all users`, `user joined`, `participant left`, `disconnect`.
+- **Signaling**: `sending signal`, `returning signal`, `receiving returned signal`.
+- **Media Status**: `media-update`, `participant-media-update`.
+- **Host Settings**: `host-joined`, `host-left`, `waiting-for-host`, `host-remove-user`, `removed-by-host`, `host-force-mute`, `force-mute`, `host-end-meeting`, `meeting-ended`.
+- **Live Stream Engine**: `start-live-stream`, `stream-data`, `stop-live-stream`, `live-stream-started`, `live-stream-stopped`.
+- **Chat Engine**: `sendMessage`, `receiveMessage`.
 
 ---
 
-## 18. Future Improvements
+## 6. Project Architecture Structure
 
-While LinkUp is robust, there is always room to scale:
-1. **Screen Sharing Capability**: Integrating desktop media tracking.
-2. **Cloud Recording**: Back-end media stitching to record sessions.
-3. **Background Blur/Replacement**: Using Canvas/WebAI APIs for privacy.
-4. **Pagination for Chat**: Handling massive active text hubs lazily.
-5. **Breakout Rooms**: Sub-channels divided dynamically by the host.
-
----
-
-## 19. Contribution Guide
-
-We love contributions! To contribute:
-
-1. Forge the repository.
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`).
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`).
-4. Push to the branch (`git push origin feature/AmazingFeature`).
-5. Open a formal **Pull Request**.
-
-Please ensure your code follows the existing style, clears the linter (`npm run lint`), and preserves the socket state integrity.
+```
+LinkUp
+├── client/
+│   ├── src/
+│   │   ├── api/          # Axios interceptors and API service calls
+│   │   ├── components/   # Reusable UI components (Buttons, Modals, Shadcn)
+│   │   ├── pages/        # Main route views (Home, Login, MeetingRoom)
+│   │   └── ...           # Libs, Store, Assets 
+│   └── package.json
+│
+└── server/
+    ├── ffmpeg/           # FFmpeg executable pathing
+    ├── middlewere/       # Express middlewares (Auth protect)
+    ├── models/           # Mongoose Database Schemas (User, Meeting, Chat)
+    ├── routes/           # Express REST API endpoint definitions
+    ├── server.js         # Entry point, Express App, and Socket.io controller
+    └── package.json
+```
 
 ---
 
-## 20. License
+## 7. Future Improvements
+
+While LinkUp is a fully operational application, the architecture allows for expansive future capabilities:
+1. **Adaptive Bitrate Streaming**: Analyzing UDP packet drops via WebRTC stats and automatically scaling video resolutions.
+2. **Breakout Rooms**: Virtual segmentation of Socket namespaces internally.
+3. **Cloud Session Recordings**: Re-purposing the canvas stream array buffers to synthesize local .webm files to an S3 bucket instead of RTMP server.
+4. **AI Summaries**: Utilizing voice-to-text plugins on the Audio `MediaStream` object to provide live transcriptions.
+
+---
+
+## 8. License
 
 This project is licensed under the **ISC License**. 
 
