@@ -1,114 +1,146 @@
-<br/>
 <div align="center">
-  <h1 align="center">LinkUp 🎥</h1>
-  <p align="center">
-    A Full-Stack MERN Video Conferencing & Live Streaming Application
-    <br />
-    <br />
-    <a href="#1-project-overview">Overview</a> ·
-    <a href="#2-features">Features</a> ·
-    <a href="#3-core-working-flows">Workflows</a> ·
-    <a href="#4-installation-guide">Installation</a> ·
-    <a href="#5-api-socket-reference">API Docs</a>
-  </p>
+  
+  # LinkUp 🎥
+
+  [![MERN Stack](https://img.shields.io/badge/Stack-MERN-blue.svg?style=for-the-badge&logo=mongodb)](https://github.com/khanparaYash/LinkUp)
+  [![WebRTC](https://img.shields.io/badge/Media-WebRTC-orange.svg?style=for-the-badge&logo=webrtc)](https://webrtc.org/)
+  [![Socket.io](https://img.shields.io/badge/RealTime-Socket.io-black.svg?style=for-the-badge&logo=socket.io)](https://socket.io/)
+  [![FFmpeg](https://img.shields.io/badge/Streaming-FFmpeg-green.svg?style=for-the-badge&logo=ffmpeg)](https://ffmpeg.org/)
+  [![License](https://img.shields.io/badge/License-ISC-red.svg?style=for-the-badge)](https://opensource.org/licenses/ISC)
+
+  A Production-Grade, Full-Stack Video Conferencing & Real-Time RTMP Live Streaming Platform
+
+  [Overview](#1-project-overview) · [Key Features](#2-key-features) · [Architecture & Workflows](#3-architecture--workflows) · [Installation Guide](#4-installation-guide) · [API & Sockets](#5-api--socket-reference) · [Project Structure](#6-project-structure) · [License](#8-license)
 </div>
 
 ---
 
 ## 1. Project Overview
 
-**LinkUp** is a powerful, full-stack video conferencing application designed for low-latency, peer-to-peer audio and video communication. Built on the **MERN stack** (MongoDB, Express.js, React, Node.js) and powered by **WebRTC**, **Socket.io**, and **FFmpeg**, LinkUp allows users to host robust video meetings from the browser. 
+**LinkUp** is a state-of-the-art, production-ready video conferencing and live-streaming application built on the **MERN Stack** (MongoDB, Express.js, React, Node.js). 
 
-Recently infused with RTMP capabilities, LinkUp now supports **live broadcasting directly to YouTube**, compositing multiple peers' video and audio on the fly directly from the client's browser, and forwarding it via server-side FFmpeg processing.
+It implements a low-latency, high-performance direct **Mesh P2P network** using **WebRTC** (`simple-peer` wrapper) and **Socket.io** signaling. 
 
-## 2. Features
-
-- **Real-Time Video & Audio Calling**: Low-latency mesh P2P network established via WebRTC.
-- **YouTube Live Streaming Integration**: Server-side RTMP broadcasting directly to YouTube using client-side grid mixing and media recording.
-- **Screen Sharing**: Effortlessly share browser tabs, windows, or entire screens during meetings.
-- **Comprehensive Host Controls**: Waiting room, force mute, participant kick, and absolute meeting termination.
-- **Persistent Text Chat**: In-meeting group chat functionality saved in the database.
-- **Secure Authentication**: JWT-based user registration, login, and secured APIs.
-- **Interactive UI**: Fluid animations, dark/light theme support, and responsive shadcn UI design.
+Additionally, LinkUp features a server-side **RTMP broadcasting engine**. The host's client dynamically mixes participant video streams using the **HTML5 Canvas API** and down-mixes audio channels using the **Web Audio API**. It then streams chunked WebM video to the Node.js backend over WebSockets, where an asynchronous queuing system pipes it to a spawned **FFmpeg** process to transcode and push H.264/AAC media directly to YouTube Live.
 
 ---
 
-## 3. Core Working Flows
+## 2. Key Features
 
-LinkUp's architecture is event-driven and decoupled, separating pure API logic from intensive Real-Time functionalities. The core workflows that make up the system include:
+*   **⚡ Real-Time P2P Calling:** Dynamic, low-latency audio/video connections running on WebRTC mesh architecture.
+*   **📺 YouTube Live Ingestion (RTMP):** Host-controlled live streaming that composites dynamic grid feeds and sums mic feeds entirely in the client browser, streaming raw binary chunks via WebSockets to server-side FFmpeg for real-time RTMP publishing.
+*   **💻 Screen Sharing:** Seamlessly switch from standard camera feeds to screen sharing in real-time, utilizing WebRTC sender-track swap mechanisms (`replaceTrack`) to avoid connection renegotiation.
+*   **👑 Comprehensive Host Privileges:** Real-time host controls to force-mute individual participants, remove users from the room, and end meetings.
+*   **💬 In-Meeting Group Chat:** Real-time persistent group chat built on Socket.io and securely stored in MongoDB for future review.
+*   **🔒 Secure Authentication & Route Protection:** Cryptographic password hashing using `bcryptjs`, secure session tokens using JSON Web Tokens (JWT), and token expiration handling.
+*   **🎙️ Active Speaker Highlighting:** Automated real-time speaking detection on both local and remote tracks using frequency-band analyses via the Web Audio API's `AnalyserNode`.
+*   **🚫 Device Duplication Protection:** Prevents duplicate logins from the same device in the same meeting room using browser UUID handshakes.
 
-### 3.1 Authentication & Security Flow
-1. **Registration & Passwords**: Users sign up; passwords are cryptographically hashed using `bcryptjs` before hitting MongoDB.
-2. **Login & Token Issuance**: Successfully verified credentials return a signed **JWT (JSON Web Token)** payload.
-3. **Protected Routes**: Custom Express middleware intercepts protected API calls (like meeting creation). If valid, user context is attached; if invalid, it rejects with a 401.
+---
 
-### 3.2 Meeting Management & Pre-Join Flow
-1. **Creation**: An authenticated user creates a room via REST (`/api/meetings/create`), making them the official host.
-2. **Joining & Device validation**: When a user clicks join, their device generates a unique UUID (DeviceID). The socket connection checks for redundant DeviceIDs in the same room. If detected, the older socket is kicked to prevent echoes and double participations.
-3. **Waiting Room Lobby**: If a participant joins before the host, the server places them in a "Waiting for Host" state by emitting `waiting-for-host`. They are granted entry upon the host emitting `host-joined`.
+## 3. Architecture & Workflows
 
-### 3.3 WebRTC Signaling & P2P Media Flow
-To establish video calls without routing media through a central server, strict WebRTC signaling occurs:
-1. **Local Capture**: Client invokes `navigator.mediaDevices.getUserMedia` for mic/cam access.
-2. **Room Registration**: Client emits `join room` to the Socket.io Node server.
-3. **Participant Discovery**: The server responds with `all users`, a list of everyone currently active.
-4. **Peer Connection Initiation**: The client loops through participants, creating an **initiator** `simple-peer` instance for each, generating an SDP Offer.
-5. **Signaling Exchange**: 
-   - Initiator emits `sending signal` to the server.
-   - Server routes offering to target via `user joined`.
-   - Target responds, generating an SDP Answer and emitting `returning signal`.
-   - Server routes the answer back to the initiator via `receiving returned signal`.
-6. **Direct Connection**: The SDPs are resolved, NATs are traversed via ICE, and the P2P pipeline opens. The `stream` event brings the `<video>` elements to life.
+### 3.1 WebRTC Signaling & Connection Sequence
 
-### 3.4 YouTube Live Streaming (RTMP) Flow
-LinkUp features a state-of-the-art live broadcasting engine to push meetings to YouTube:
-1. **Canvas & Audio Mixing (Grid Compositor)**: The host selects peers. A hidden HTML5 `<canvas>` calculates a dynamic layout grid and draws the incoming `<video>` streams in real-time. The Web Audio API simultaneously connects their audio tracks to a single `MediaStreamDestination`.
-2. **Chunking**: A `MediaRecorder` takes this composited WebM MediaStream and chunks it continuously on a 2000ms interval.
-3. **WebSocket Transmission**: Binary chunks are immediately emitted to the Node server via the `stream-data` socket event.
-4. **Server FFmpeg Transcoding**: The backend spawns an `ffmpeg` child process connected via standard input (`stdin`). It ingests the WebM array buffers, transcodes video to `libx264` and audio to `aac` to meet YouTube requirements.
-5. **RTMP Push**: FFmpeg natively pushes the FLV transcoded stream to the specified YouTube RTMP Ingest URL using the Host's Stream Key.
+Before two participants can exchange peer-to-peer audio and video, they must exchange network metadata (ICE Candidates) and media configurations (SDP) through Node.js acting as a signaling hub.
 
-### 3.5 Screen Sharing Flow
-1. **Capture**: Client requests `navigator.mediaDevices.getDisplayMedia`.
-2. **Track Replacement**: Instead of renegotiating the entire SDP pipeline, LinkUp iterates through all active `peerConnection` senders and dynamically swaps the user’s camera video track with the newly acquired screen video track.
-3. **Termination**: Upon stopping, the system retrieves the standard `getUserMedia` camera feed and swaps the tracks back.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Client A (Initiator)
+    participant Socket Server (Signaling)
+    participant Client B (Callee)
 
-### 3.6 Host Control Flow
-Hosts have elevated privileges validated securely on the socket server:
-- **Muta/Kick**: Emitting `host-force-mute` or `host-remove-user` with a target ID. The server verifies if the requester's socket ID matches the room's host mapping. If so, instructions are pushed exclusively to the targeted client to drop tracks or redirect home.
-- **End Meeting**: `host-end-meeting` shuts down the RTMP ffmpeg processes, severs all socket connections mapping to the room, and flushes the data footprint from node's memory map.
+    Client A->>Socket Server: join room (roomID, name, deviceId)
+    Socket Server-->>Client A: all users (list of active peer IDs)
+    
+    Note over Client A: Client A creates simple-peer (initiator: true) for Client B
+    Client A->>Socket Server: sending signal (target: B, signal: SDP Offer)
+    Socket Server->>Client B: user joined (caller: A, signal: SDP Offer)
+    
+    Note over Client B: Client B creates simple-peer (initiator: false) with A's Offer
+    Client B->>Socket Server: returning signal (target: A, signal: SDP Answer)
+    Socket Server->>Client A: receiving returned signal (id: B, signal: SDP Answer)
+    
+    Note over Client A, Client B: Direct P2P Media Stream Established (WebRTC Data Channels & Media Tracks)
+```
+
+---
+
+### 3.2 YouTube Live RTMP Broadcasting Workflow
+
+To enable live streaming without overloading server CPU resources with complex grid transcoding, LinkUp offloads video rendering and audio mixing to the host client.
+
+```mermaid
+flowchart TD
+    subgraph Client-Side (Host Browser)
+        A[Incoming WebRTC Streams] --> B[HTML5 Canvas Grid Composer]
+        A --> C[Web Audio API Summing Node]
+        B --> D[Combined MediaStream]
+        C --> D
+        D --> E[MediaRecorder - video/webm]
+        E -->|Continuous 2000ms chunking| F[WebSocket Emitting stream-data]
+    end
+
+    subgraph Server-Side (Node.js & FFmpeg)
+        F -->|Array Buffer Chunks| G[Socket.io Listener]
+        G --> H[Asynchronous Sequential Queue]
+        H -->|Pipes chunk buffers safely| I[FFmpeg Child Process stdin]
+        I -->|Transcodes H.264 & AAC| J[YouTube RTMP Ingest URL]
+    end
+```
+
+1.  **Grid Composition:** The host's client draws video frames from active streams onto an off-screen `<canvas>` at 8 FPS, resizing them into dynamic grids.
+2.  **Audio Summing:** Active streams' audio tracks are connected to a `MediaStreamAudioSourceNode` and combined into a single `MediaStreamAudioDestinationNode`.
+3.  **Encoding:** A client-side `MediaRecorder` takes the combined stream and packages it as high-efficiency WebM data.
+4.  **WebSocket Transit:** Chunks are sent to the Node.js server via websocket packets at 2-second intervals.
+5.  **Sequential Queue Buffering:** The backend pushes binary buffers into an asynchronous queue and writes them to FFmpeg's standard input (`stdin`) sequentially. This prevents backpressure and pipeline crashes.
+6.  **RTMP Push:** FFmpeg transcodes the streams into H.264 video (`libx264`) and AAC audio (`c:a aac`) and pushes them to YouTube using a Flash Video (FLV) container.
+
+---
+
+### 3.3 Dynamic Screen Sharing Track Swap
+
+Instead of tearing down the WebRTC connection or executing an expensive renegotiation flow (Offer/Answer) when a user shares their screen, LinkUp utilizes direct WebRTC track swapping:
+
+```javascript
+const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+const screenTrack = screenStream.getVideoTracks()[0];
+
+peersRef.current.forEach((peerObj) => {
+  // Locate the existing camera track sender
+  const videoSender = peerObj.peer._pc
+    .getSenders()
+    .find((s) => s.track && s.track.kind === "video");
+  
+  // Swap standard camera track with screen capture track dynamically
+  if (videoSender) videoSender.replaceTrack(screenTrack);
+});
+```
 
 ---
 
 ## 4. Installation Guide
 
 ### Prerequisites
-- Node.js (v18+ recommended)
-- MongoDB Database (Local or MongoDB Atlas)
-- FFmpeg installed locally (Required for the backend)
+*   **Node.js:** v18.x or later installed locally.
+*   **MongoDB:** Local instance running on port `27017` or a MongoDB Atlas cloud URI.
+*   **FFmpeg:** Installed on the host operating system and added to your system path.
+
+---
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/LinkUp.git
-cd LinkUp
+git clone https://github.com/khanparaYash/LinkUp.git
+cd "MERN LinkUp"
 ```
 
-### 2. Setup Backend Component
+### 2. Setup Backend Server
 ```bash
 cd server
 npm install
 ```
-
-### 3. Setup Frontend Component
-```bash
-cd ../client
-npm install
-```
-
-### Environment Variables
-Create `.env` files in both the client and server directories:
-
-**`/server/.env`**
+Configure environment variables in a `/server/.env` file:
 ```env
 PORT=5000
 MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/LinkUp
@@ -117,21 +149,26 @@ JWT_EXPIRES_IN=1d
 CLIENT_URL=http://localhost:5173
 ```
 
-**`/client/.env`** *(Vite syntax)*
+### 3. Setup Frontend Client
+```bash
+cd ../client
+npm install
+```
+Configure environment variables in a `/client/.env` file:
 ```env
 VITE_BACKEND=http://localhost:5000
 ```
 
-### Running the Application
+### 4. Running the Application
 
-**Terminal 1 (Backend Server)**
+**Terminal 1 (Backend Node Server):**
 ```bash
 cd server
 npm run dev
 # Server running on http://localhost:5000
 ```
 
-**Terminal 2 (React Frontend)**
+**Terminal 2 (Frontend React App):**
 ```bash
 cd client
 npm run dev
@@ -142,65 +179,82 @@ npm run dev
 
 ## 5. API & Socket Reference
 
-### REST Endpoints
-| Context | Method | Endpoint | Description |
-| --- | --- | --- | --- |
-| **Auth** | `POST` | `/api/auth/register` | Create a new user account |
-| **Auth** | `POST` | `/api/auth/login` | Authenticate user and receive JWT |
-| **Auth** | `GET` | `/api/auth/me` | Get currently logged-in user profile (Protected) |
-| **Meeting** | `POST` | `/api/meetings/create` | Generate a new meeting room (Protected) |
-| **Meeting** | `GET` | `/api/meetings/:id` | Fetch specific meeting details |
-| **Chat** | `POST` | `/api/chat/history` | Fetch persistent chat logs for a room |
+### 5.1 REST Endpoints
 
-### Socket.io Events
-- **Connections & Rooms**: `join room`, `leave room`, `all users`, `user joined`, `participant left`, `disconnect`.
-- **Signaling**: `sending signal`, `returning signal`, `receiving returned signal`.
-- **Media Status**: `media-update`, `participant-media-update`.
-- **Host Settings**: `host-joined`, `host-left`, `waiting-for-host`, `host-remove-user`, `removed-by-host`, `host-force-mute`, `force-mute`, `host-end-meeting`, `meeting-ended`.
-- **Live Stream Engine**: `start-live-stream`, `stream-data`, `stop-live-stream`, `live-stream-started`, `live-stream-stopped`.
-- **Chat Engine**: `sendMessage`, `receiveMessage`.
+| Resource | Method | Endpoint | Authorization | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **Auth** | `POST` | `/api/auth/register` | Public | Registers a new user. Hashes the password with bcrypt. |
+| **Auth** | `POST` | `/api/auth/login` | Public | Verifies credentials and issues a signed JWT. |
+| **Auth** | `GET` | `/api/auth/me` | Protected | Returns the logged-in user's profile. |
+| **Meeting** | `POST` | `/api/meetings/create` | Protected | Creates a new meeting room and returns a passcode. |
+| **Meeting** | `POST` | `/api/meetings/join` | Optional | Verifies meeting passcodes and grants room access. |
+| **Meeting** | `POST` | `/api/meetings/end` | Protected | Terminates a meeting room (Host-only). |
+| **Chat** | `POST` | `/api/chat/history` | Protected | Retrieves persistent chat history for a meeting room. |
 
 ---
 
-## 6. Project Architecture Structure
+### 5.2 Socket.io Event Bindings
 
-```
-LinkUp
+*   **Room Orchestration:**
+    *   `join room`: Transmits participant credentials, browser DeviceID, and default media configurations.
+    *   `all users`: Broadcasts active peer IDs to newly connected users.
+    *   `user joined` / `participant left`: Dispatches notifications when users enter or exit the room.
+    *   `duplicate-kicked`: Sent to older sockets from the same device to prevent session collision.
+*   **WebRTC Signaling:**
+    *   `sending signal` / `returning signal`: Routes ICE SDP offers and answers between peers.
+*   **Host Control Broadcasts:**
+    *   `host-force-mute` / `force-mute`: Dispatches mute commands to a targeted socket.
+    *   `host-remove-user` / `removed-by-host`: Remotely disconnects a participant and redirects them home.
+    *   `host-end-meeting` / `meeting-ended`: Closes active sessions and shuts down the database registry.
+*   **RTMP Streaming Engine:**
+    *   `start-live-stream`: Spawns the backend FFmpeg process and configures the RTMP endpoint.
+    *   `stream-data`: Handles binary WebM chunk buffers sent from the client to Node.js.
+    *   `stop-live-stream`: Closes the stdin pipeline and shuts down the FFmpeg process.
+
+---
+
+## 6. Project Structure
+
+```text
+LinkUp/
 ├── client/
 │   ├── src/
-│   │   ├── api/          # Axios interceptors and API service calls
-│   │   ├── components/   # Reusable UI components (Buttons, Modals, Shadcn)
-│   │   ├── pages/        # Main route views (Home, Login, MeetingRoom)
-│   │   └── ...           # Libs, Store, Assets 
+│   │   ├── api/            # Axios instance and API call intercepts
+│   │   ├── components/     # Reusable shadcn/ui components (Header, ThemeToggle)
+│   │   ├── pages/          # Core views (Home, Login, Register, WaitingRoom)
+│   │   │   ├── MeetingRoom.jsx  # Main WebRTC orchestration, canvas grid mixing, WebSocket streaming
+│   │   │   ├── Video.jsx        # HTML5 Video container and Audio analyser active speaking highlight
+│   │   │   └── Chat.jsx         # Live text messaging panel
+│   │   ├── store/          # Redux Toolkit global state store
+│   │   └── tailwind.config.js
 │   └── package.json
 │
 └── server/
-    ├── ffmpeg/           # FFmpeg executable pathing
-    ├── middlewere/       # Express middlewares (Auth protect)
-    ├── models/           # Mongoose Database Schemas (User, Meeting, Chat)
-    ├── routes/           # Express REST API endpoint definitions
-    ├── server.js         # Entry point, Express App, and Socket.io controller
+    ├── middlewere/         # protect and optionalAuth JWT parsers
+    ├── models/             # Mongoose schemas (User, Meeting, Chat)
+    ├── routes/             # REST routing layers
+    ├── server.js           # Express configuration, Socket.io lifecycle handlers, FFmpeg spawns
     └── package.json
 ```
 
 ---
 
-## 7. Future Improvements
+## 7. Performance Optimizations & Architecture Decisions
 
-While LinkUp is a fully operational application, the architecture allows for expansive future capabilities:
-1. **Adaptive Bitrate Streaming**: Analyzing UDP packet drops via WebRTC stats and automatically scaling video resolutions.
-2. **Breakout Rooms**: Virtual segmentation of Socket namespaces internally.
-3. **Cloud Session Recordings**: Re-purposing the canvas stream array buffers to synthesize local .webm files to an S3 bucket instead of RTMP server.
-4. **AI Summaries**: Utilizing voice-to-text plugins on the Audio `MediaStream` object to provide live transcriptions.
+1.  **Client-Side Grid Composition:** Video grid layout and canvas rendering are offloaded to client browsers. This keeps the Node.js server lightweight and responsive.
+2.  **Asynchronous Stream Queue:** The backend uses an asynchronous writing queue to stream binary buffers into FFmpeg. This prevents backpressure issues, socket blocks, and server pipeline crashes.
+3.  **Web Audio summation:** Mixing mic feeds into a single audio track on the client keeps audio streams synchronized and reduces server-side audio processing.
+4.  **SDP Track Swapping:** Dynamically swapping tracks during screen shares avoids renegotiation latency, preventing connection drops and screen freezes.
+5.  **Device-Collision Handshake:** Authenticating and tracking sessions via a hardware UUID stored in local storage stops feedback loops and prevents duplicate tab sessions.
 
 ---
 
 ## 8. License
 
-This project is licensed under the **ISC License**. 
+This project is licensed under the terms of the **ISC License**.
 
 ```text
-Copyright (c) 2024, LinkUp Contributors
+Copyright (c) 2026, LinkUp Contributors
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
